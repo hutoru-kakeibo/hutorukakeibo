@@ -11,17 +11,22 @@ const rounded = M_PLUS_Rounded_1c({
   display: "swap",
 });
 
+const APP_NAME = "太る家計簿";
+const APP_DESCRIPTION =
+  "毎日の支出をサッと記録。使いすぎるとキャラクターが太る、続けたくなる家計簿アプリ。";
+
 export const metadata: Metadata = {
+  // OGP画像などの相対URLを絶対URLに解決するために必要
+  metadataBase: new URL("https://hutorukakeibo.vercel.app"),
   title: {
-    default: "太る家計簿",
-    template: "%s | 太る家計簿",
+    default: APP_NAME,
+    template: `%s | ${APP_NAME}`,
   },
-  description:
-    "毎日の支出をサッと記録。使いすぎるとキャラクターが太る、続けたくなる家計簿アプリ。",
-  applicationName: "太る家計簿",
+  description: APP_DESCRIPTION,
+  applicationName: APP_NAME,
   appleWebApp: {
     capable: true,
-    title: "太る家計簿",
+    title: APP_NAME,
     statusBarStyle: "default",
   },
   icons: {
@@ -35,6 +40,21 @@ export const metadata: Metadata = {
     // Next.js は標準名の mobile-web-app-capable のみ出力する。
     // iOS 17 未満はこの旧名しか解釈しないため明示的に付与する。
     "apple-mobile-web-app-capable": "yes",
+  },
+  // LINEやメッセージアプリでリンク共有した際のプレビュー（タイトル・画像）
+  openGraph: {
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    siteName: APP_NAME,
+    locale: "ja_JP",
+    type: "website",
+    images: [{ url: "/og-image.png", width: 1200, height: 1200, alt: APP_NAME }],
+  },
+  twitter: {
+    card: "summary",
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    images: ["/og-image.png"],
   },
 };
 
