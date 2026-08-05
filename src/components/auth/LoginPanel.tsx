@@ -23,7 +23,7 @@ export function LoginPanel() {
       <CharacterAvatar status={NEUTRAL_STATUS} />
 
       <div>
-        <h1 className="text-xl font-bold">PetiteBudget</h1>
+        <h1 className="text-xl font-bold">太る家計簿</h1>
         <p className="mt-2 text-sm text-ink-muted">
           キャラクターと一緒に、楽しく家計簿を続けよう
         </p>

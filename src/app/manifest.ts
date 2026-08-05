@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "PetiteBudget - キャラと育てる家計簿",
-    short_name: "PetiteBudget",
+    name: "太る家計簿 - キャラと育てる家計簿",
+    short_name: "太る家計簿",
     description:
       "毎日の支出をサッと記録。使いすぎるとキャラクターが太る、続けたくなる家計簿アプリ。",
     lang: "ja",

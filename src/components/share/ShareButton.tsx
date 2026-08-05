@@ -23,7 +23,7 @@ export function ShareButton({ status, spent, budget, monthKey }: ShareButtonProp
     try {
       const encoded = encodeShareSnapshot({ spent, budget, monthKey });
       const url = `${window.location.origin}/share/${encoded}`;
-      const text = `PetiteBudget で今月は「${status.label}」でした。${status.message}`;
+      const text = `太る家計簿で今月は「${status.label}」でした。${status.message}`;
 
       let imageBlob: Blob | null = null;
       try {
@@ -39,7 +39,7 @@ export function ShareButton({ status, spent, budget, monthKey }: ShareButtonProp
         imageBlob = null;
       }
 
-      const result = await shareCharacterStatus({ title: "PetiteBudget", text, url, imageBlob });
+      const result = await shareCharacterStatus({ title: "太る家計簿", text, url, imageBlob });
       if (result === "copied") setFeedback("リンクをコピーしました");
       else if (result === "manual") setFeedback(url);
     } finally {

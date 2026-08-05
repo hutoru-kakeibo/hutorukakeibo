@@ -35,7 +35,7 @@ export default async function SharePage({ params }: { params: Promise<{ data: st
         </div>
 
         <Link href="/" className="text-sm font-bold text-brand-600 underline">
-          PetiteBudget を見てみる
+          太る家計簿を見てみる
         </Link>
 
         <p className="text-[11px] text-ink-muted">

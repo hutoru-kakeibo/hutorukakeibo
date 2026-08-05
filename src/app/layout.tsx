@@ -13,15 +13,15 @@ const rounded = M_PLUS_Rounded_1c({
 
 export const metadata: Metadata = {
   title: {
-    default: "PetiteBudget",
-    template: "%s | PetiteBudget",
+    default: "太る家計簿",
+    template: "%s | 太る家計簿",
   },
   description:
     "毎日の支出をサッと記録。使いすぎるとキャラクターが太る、続けたくなる家計簿アプリ。",
-  applicationName: "PetiteBudget",
+  applicationName: "太る家計簿",
   appleWebApp: {
     capable: true,
-    title: "PetiteBudget",
+    title: "太る家計簿",
     statusBarStyle: "default",
   },
   icons: {

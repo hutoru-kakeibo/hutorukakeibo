@@ -72,7 +72,7 @@ export async function renderShareImage(params: RenderShareImageParams): Promise<
 
   ctx.font = "bold 24px sans-serif";
   ctx.fillStyle = "#22a06b";
-  ctx.fillText("PetiteBudget", 400, 740);
+  ctx.fillText("太る家計簿", 400, 740);
 
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
 }
