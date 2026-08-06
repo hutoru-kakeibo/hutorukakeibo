@@ -58,9 +58,21 @@ create table public.custom_categories (
   created_at timestamptz not null default now()
 );
 
+-- category_budgets: 全体予算(households.monthly_budget)とは別に、カテゴリごとに設定できる任意の予算。
+-- キャラクターの状態判定は引き続き全体予算のみを参照し、こちらは「統計」の診断で使う。
+create table public.category_budgets (
+  id uuid primary key default gen_random_uuid(),
+  household_id uuid not null references public.households (id) on delete cascade,
+  category_id text not null,
+  monthly_budget integer not null check (monthly_budget > 0),
+  created_at timestamptz not null default now(),
+  unique (household_id, category_id)
+);
+
 create index expenses_household_date_idx on public.expenses (household_id, expense_date desc);
 create index household_members_user_idx on public.household_members (user_id);
 create index custom_categories_household_idx on public.custom_categories (household_id);
+create index category_budgets_household_idx on public.category_budgets (household_id);
 
 -- ============================================================
 -- 2. 新規ユーザー登録時の自動プロビジョニング
@@ -385,6 +397,20 @@ create policy "premium households can create custom categories" on public.custom
   );
 
 create policy "members can delete custom categories" on public.custom_categories
+  for delete using (public.is_household_member(household_id));
+
+-- category_budgets: households.monthly_budget と同じ考え方で、メンバーなら誰でも管理できる
+create policy "members can view category budgets" on public.category_budgets
+  for select using (public.is_household_member(household_id));
+
+create policy "members can insert category budgets" on public.category_budgets
+  for insert with check (public.is_household_member(household_id));
+
+create policy "members can update category budgets" on public.category_budgets
+  for update using (public.is_household_member(household_id))
+  with check (public.is_household_member(household_id));
+
+create policy "members can delete category budgets" on public.category_budgets
   for delete using (public.is_household_member(household_id));
 
 -- ============================================================

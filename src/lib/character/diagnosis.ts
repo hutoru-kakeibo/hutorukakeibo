@@ -1,4 +1,4 @@
-import type { AnyCategory, Expense } from "@/lib/expenses/types";
+import type { AnyCategory, CategoryBudget, Expense } from "@/lib/expenses/types";
 import { groupExpensesByCategory, sumExpensesForMonth } from "@/lib/expenses/utils";
 import { formatYen } from "@/lib/format";
 import { computeCharacterStatus, type CharacterStage } from "./logic";
@@ -31,14 +31,18 @@ const HEADLINE_BY_RANK: Record<DiagnosisRank, string> = {
 const DOMINANT_CATEGORY_THRESHOLD = 35;
 // 経過日数に対する消化ペースがこの差を超えたら「ペースが早い」と警告する
 const PACE_WARNING_MARGIN = 0.15;
+// カテゴリ予算超過のインサイトは、超過額が大きい順に最大何件まで表示するか
+const MAX_CATEGORY_BUDGET_INSIGHTS = 2;
 
 export function diagnoseMonth(
   expenses: Expense[],
   monthlyBudget: number,
   monthKey: string,
   allCategories: AnyCategory[],
+  categoryBudgets: CategoryBudget[] = [],
 ): Diagnosis {
   const spent = sumExpensesForMonth(expenses, monthKey);
+  // キャラクターの状態判定（S〜Dランク）は、カテゴリ予算ではなく全体予算のみを参照する（仕様どおり）
   const status = computeCharacterStatus(spent, monthlyBudget);
   const rank = RANK_BY_STAGE[status.stage];
   const insights: string[] = [];
@@ -49,6 +53,24 @@ export function diagnoseMonth(
     insights.push(
       `「${topCategory.label}」が支出全体の${topCategory.percent}%を占めています。使いすぎていないか振り返ってみましょう。`,
     );
+  }
+
+  if (categoryBudgets.length > 0) {
+    const overBudgetCategories = categoryBudgets
+      .map((budget) => {
+        const categorySpent = categories.find((c) => c.categoryId === budget.categoryId)?.total ?? 0;
+        return {
+          label: allCategories.find((c) => c.id === budget.categoryId)?.label ?? "不明なカテゴリ",
+          over: categorySpent - budget.monthlyBudget,
+        };
+      })
+      .filter((entry) => entry.over > 0)
+      .sort((a, b) => b.over - a.over)
+      .slice(0, MAX_CATEGORY_BUDGET_INSIGHTS);
+
+    for (const entry of overBudgetCategories) {
+      insights.push(`「${entry.label}」はカテゴリ予算を${formatYen(entry.over)}超過しています。`);
+    }
   }
 
   const [yearStr, monthStr] = monthKey.split("-");

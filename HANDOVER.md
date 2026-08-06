@@ -30,6 +30,7 @@
 - 招待コードによる家族/パートナー共有（Realtime同期）、ホストによるメンバー管理・家計簿削除
 - SNS共有（Web Share API + Canvas生成画像）、閲覧専用スナップショットリンク
 - カスタムカテゴリ（プレミアムプラン限定 / **課金処理自体は未実装**）
+- カテゴリ別予算（全体予算とは別に任意設定。キャラクター判定は全体予算のみ参照、診断へは超過額を反映）
 - PWA（オフラインキャッシュ・ホーム画面インストール）
 
 ---
@@ -277,6 +278,7 @@ AuthProvider            … Supabase の認証状態
 | `household_members` | 所属関係（多対多）。**1人が複数の家計簿に所属できる** |
 | `expenses` | 支出。`category_id` は固定カテゴリの文字列IDまたはカスタムカテゴリのUUID（**CHECK制約なし**） |
 | `custom_categories` | カスタムカテゴリ。作成は premium プランのみ（RLSで強制） |
+| `category_budgets` | カテゴリごとの任意予算。`(household_id, category_id)` でunique。**キャラクター判定には使わない**（診断の追加インサイトのみ） |
 
 ### 6.2 SQL 関数（すべて `SECURITY DEFINER`）
 
@@ -368,7 +370,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | Step 3 | Recharts によるグラフ、診断ロジック、Web Share API + Canvas画像、公開スナップショットリンク |
 | Step 4 | iPhone 3サイズでのレスポンシブ検証、タップ領域、セーフエリア、PWAインストール要件確認 |
 | Supabase接続 | Google OAuth 本実装、localStorage → DB移行。**RLS無限再帰バグを発見・修正**（§4.2） |
-| 機能追加 | 複数家計簿 → 取引履歴/ソート/再編集 → サブスク前段階（カスタムカテゴリ）→ 家計簿削除 |
+| 機能追加 | 複数家計簿 → 取引履歴/ソート/再編集 → サブスク前段階（カスタムカテゴリ）→ 家計簿削除 → カテゴリ別予算 |
 | デプロイ | GitHub + Vercel 連携、アプリ名変更、OGP設定 |
 
 ---

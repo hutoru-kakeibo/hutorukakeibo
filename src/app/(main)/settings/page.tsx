@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CategoryBudgetsSection } from "@/components/expenses/CategoryBudgetsSection";
 import { CategoryManageSection } from "@/components/expenses/CategoryManageSection";
 import { HouseholdManageCard } from "@/components/household/HouseholdManageCard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -71,6 +72,8 @@ export default function SettingsPage() {
           保存する
         </button>
       </section>
+
+      <CategoryBudgetsSection />
 
       <CategoryManageSection />
 

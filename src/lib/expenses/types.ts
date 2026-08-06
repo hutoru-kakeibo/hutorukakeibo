@@ -17,3 +17,9 @@ export interface AnyCategory {
   emoji: string;
   isCustom: boolean;
 }
+
+// households.monthly_budget（全体予算）とは別に、カテゴリごとに設定できる任意の予算
+export interface CategoryBudget {
+  categoryId: string;
+  monthlyBudget: number;
+}

@@ -88,6 +88,22 @@ export interface Database {
         Update: Record<string, never>;
         Relationships: [];
       };
+      category_budgets: {
+        Row: {
+          id: string;
+          household_id: string;
+          category_id: string;
+          monthly_budget: number;
+          created_at: string;
+        };
+        Insert: {
+          household_id: string;
+          category_id: string;
+          monthly_budget: number;
+        };
+        Update: { monthly_budget?: number };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

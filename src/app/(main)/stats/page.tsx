@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { CategoryPieChart, PIE_COLORS } from "@/components/stats/CategoryPieChart";
 import { DailyBarChart } from "@/components/stats/DailyBarChart";
 import { DiagnosisCard } from "@/components/stats/DiagnosisCard";
+import { useCategoryBudgets } from "@/contexts/CategoryBudgetsContext";
 import { useExpenses } from "@/contexts/ExpensesContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
@@ -17,6 +18,7 @@ export default function StatsPage() {
   const monthlyBudget = activeHousehold?.monthlyBudget ?? 0;
   const { expenses } = useExpenses();
   const { categories } = useAllCategories();
+  const { categoryBudgets } = useCategoryBudgets();
   const monthKey = getMonthKey();
 
   const monthlySpent = useMemo(() => sumExpensesForMonth(expenses, monthKey), [expenses, monthKey]);
@@ -26,8 +28,8 @@ export default function StatsPage() {
   );
   const dailyTotals = useMemo(() => groupExpensesByDay(expenses, monthKey), [expenses, monthKey]);
   const diagnosis = useMemo(
-    () => diagnoseMonth(expenses, monthlyBudget, monthKey, categories),
-    [expenses, monthlyBudget, monthKey, categories],
+    () => diagnoseMonth(expenses, monthlyBudget, monthKey, categories, categoryBudgets),
+    [expenses, monthlyBudget, monthKey, categories, categoryBudgets],
   );
 
   const hasData = categoryTotals.length > 0;
