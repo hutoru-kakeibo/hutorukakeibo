@@ -17,6 +17,9 @@ create table public.households (
   owner_id uuid not null references auth.users (id),
   -- サブスク課金の前段階。実際の決済処理は未実装で、この列は手動で切り替えて運用する。
   plan text not null default 'free' check (plan in ('free', 'premium')),
+  -- 「記録」タブのカテゴリ表示順（カテゴリIDの配列）。ドラッグ並べ替えで更新される。
+  -- 未登録のカテゴリ（新しく追加されたもの等）はこの配列に含まれず、末尾に自然順で表示される。
+  category_order jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 

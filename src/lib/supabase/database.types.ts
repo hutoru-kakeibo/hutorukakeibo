@@ -24,6 +24,7 @@ export interface Database {
           invite_code: string;
           owner_id: string;
           plan: string;
+          category_order: string[];
           created_at: string;
         };
         Insert: {
@@ -33,8 +34,15 @@ export interface Database {
           invite_code: string;
           owner_id: string;
           plan?: string;
+          category_order?: string[];
         };
-        Update: { name?: string; color?: string; monthly_budget?: number; plan?: string };
+        Update: {
+          name?: string;
+          color?: string;
+          monthly_budget?: number;
+          plan?: string;
+          category_order?: string[];
+        };
         Relationships: [];
       };
       household_members: {

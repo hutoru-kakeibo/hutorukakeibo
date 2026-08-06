@@ -33,6 +33,7 @@
 - カテゴリ別予算（全体予算とは別に任意設定。キャラクター判定は全体予算のみ参照、診断へは超過額を反映。ホーム/統計に進捗バーで可視化）
 - PWA（オフラインキャッシュ・ホーム画面インストール）
 - 予算管理のネスト画面（設定タブ → 「予算管理」→「家計簿全体の予算」「カテゴリ別の予算」。ルートは `/settings/budget`, `/settings/budget/overall`, `/settings/budget/categories`）
+- 「記録」タブのカテゴリをドラッグで並べ替え（`@dnd-kit`。順序は `households.category_order`（jsonb配列）に保存し、家計簿メンバー間で共有される。並び順は「記録」画面だけでなく `useAllCategories` を使う全画面に反映される）
 
 ---
 
@@ -45,6 +46,7 @@ Tailwind CSS v4
 Serwist 9.5.12         … PWA (next-pwa の後継)
 Supabase               … Auth + PostgreSQL + Realtime
 Recharts 3.10.1        … グラフ
+@dnd-kit                … カテゴリのドラッグ並べ替え（core / sortable / utilities）
 Vercel                 … ホスティング（GitHub連携で自動デプロイ）
 ```
 
@@ -275,7 +277,7 @@ AuthProvider            … Supabase の認証状態
 | テーブル | 役割 |
 |---|---|
 | `profiles` | ユーザープロフィール + `active_household_id`（表示中の家計簿） |
-| `households` | 家計簿。`name` / `color` / `monthly_budget` / `invite_code` / `owner_id`（ホスト） / `plan`(`free`\|`premium`) |
+| `households` | 家計簿。`name` / `color` / `monthly_budget` / `invite_code` / `owner_id`（ホスト） / `plan`(`free`\|`premium`) / `category_order`（カテゴリ表示順のjsonb配列） |
 | `household_members` | 所属関係（多対多）。**1人が複数の家計簿に所属できる** |
 | `expenses` | 支出。`category_id` は固定カテゴリの文字列IDまたはカスタムカテゴリのUUID（**CHECK制約なし**） |
 | `custom_categories` | カスタムカテゴリ。作成は premium プランのみ（RLSで強制） |
@@ -374,6 +376,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | 機能追加 | 複数家計簿 → 取引履歴/ソート/再編集 → サブスク前段階（カスタムカテゴリ）→ 家計簿削除 → カテゴリ別予算 → ホーム/統計への予算進捗の可視化 |
 | デプロイ | GitHub + Vercel 連携、アプリ名変更、OGP設定 |
 | デザイン調整 | 診断バッジを「ランク文字」→「AI」表記に変更、ホーム画面アイコン（icon-192/512, apple-touch-icon）を `og-image.png` ベースのround.pngキャラクター意匠に統一、設定タブの予算関連UIを「予算管理」ネスト画面へ再編（`/settings/budget` 配下） |
+| 機能追加 | 「記録」タブのカテゴリをドラッグ&ドロップで並べ替え可能に（`@dnd-kit` 導入、`households.category_order` に永続化） |
 
 ---
 

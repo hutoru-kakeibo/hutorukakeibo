@@ -32,6 +32,7 @@ export interface Household {
   ownerId: string;
   plan: HouseholdPlan;
   members: HouseholdMember[];
+  categoryOrder: string[];
 }
 
 type ActionResult = { ok: true } | { ok: false; message: string };
@@ -45,6 +46,7 @@ interface HouseholdContextValue {
   renameHousehold: (id: string, name: string) => Promise<void>;
   setHouseholdColor: (id: string, color: string) => Promise<void>;
   setMonthlyBudget: (value: number) => Promise<void>;
+  setCategoryOrder: (order: string[]) => Promise<void>;
   joinByInviteCode: (code: string) => Promise<ActionResult>;
   removeMember: (householdId: string, userId: string) => Promise<ActionResult>;
   leaveHousehold: (householdId: string) => Promise<ActionResult>;
@@ -93,7 +95,7 @@ async function fetchMyHouseholds(
 
   const { data: householdRows, error: householdsError } = await supabase
     .from("households")
-    .select("id, name, color, monthly_budget, invite_code, owner_id, plan")
+    .select("id, name, color, monthly_budget, invite_code, owner_id, plan, category_order")
     .in("id", householdIds);
 
   if (householdsError) {
@@ -129,6 +131,7 @@ async function fetchMyHouseholds(
     inviteCode: row.invite_code,
     ownerId: row.owner_id,
     plan: row.plan === "premium" ? "premium" : "free",
+    categoryOrder: Array.isArray(row.category_order) ? row.category_order : [],
     members: (allMemberRows ?? [])
       .filter((member) => member.household_id === row.id)
       .map((member) => {
@@ -274,6 +277,24 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [supabase, activeHousehold],
   );
 
+  const setCategoryOrder = useCallback(
+    async (order: string[]) => {
+      if (!activeHousehold) return;
+      const { error } = await supabase
+        .from("households")
+        .update({ category_order: order })
+        .eq("id", activeHousehold.id);
+      if (error) {
+        console.error("[household] カテゴリ順の更新に失敗しました", error);
+        return;
+      }
+      setHouseholds((prev) =>
+        prev.map((h) => (h.id === activeHousehold.id ? { ...h, categoryOrder: order } : h)),
+      );
+    },
+    [supabase, activeHousehold],
+  );
+
   const joinByInviteCode = useCallback(
     async (code: string): Promise<ActionResult> => {
       const { error } = await supabase.rpc("join_household_by_invite_code", { code });
@@ -340,6 +361,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       renameHousehold,
       setHouseholdColor,
       setMonthlyBudget,
+      setCategoryOrder,
       joinByInviteCode,
       removeMember,
       leaveHousehold,
@@ -354,6 +376,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       renameHousehold,
       setHouseholdColor,
       setMonthlyBudget,
+      setCategoryOrder,
       joinByInviteCode,
       removeMember,
       leaveHousehold,

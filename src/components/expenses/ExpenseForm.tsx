@@ -1,5 +1,16 @@
 "use client";
 
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { PaywallNotice } from "@/components/billing/PaywallNotice";
@@ -8,7 +19,57 @@ import { useExpenses } from "@/contexts/ExpensesContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
 import { CUSTOM_CATEGORY_EMOJIS, DEFAULT_CUSTOM_CATEGORY_EMOJI } from "@/lib/expenses/customCategoryEmojis";
-import type { Expense } from "@/lib/expenses/types";
+import type { AnyCategory, Expense } from "@/lib/expenses/types";
+
+function SortableCategoryButton({
+  category,
+  active,
+  onSelect,
+  onRequestDelete,
+}: {
+  category: AnyCategory;
+  active: boolean;
+  onSelect: () => void;
+  onRequestDelete: (() => void) | null;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: category.id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, touchAction: "none" }}
+      className={`relative ${isDragging ? "z-10" : ""}`}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        {...attributes}
+        {...listeners}
+        aria-pressed={active}
+        className={`flex w-full flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium transition-colors ${
+          active ? "bg-brand-500 text-white" : "bg-surface text-ink-muted shadow-sm"
+        } ${isDragging ? "opacity-70 shadow-lg" : ""}`}
+      >
+        <span aria-hidden className="text-lg">
+          {category.emoji}
+        </span>
+        {category.label}
+      </button>
+      {onRequestDelete && (
+        <button
+          type="button"
+          aria-label={`${category.label}を削除`}
+          onClick={onRequestDelete}
+          className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-status-over text-[10px] font-bold text-white shadow"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
 
 function todayDateString(): string {
   const now = new Date();
@@ -24,7 +85,7 @@ interface ExpenseFormProps {
 export function ExpenseForm({ expense }: ExpenseFormProps) {
   const router = useRouter();
   const { addExpense, updateExpense, removeExpense } = useExpenses();
-  const { activeHousehold } = useHousehold();
+  const { activeHousehold, setCategoryOrder } = useHousehold();
   const { categories } = useAllCategories();
   const { addCustomCategory, removeCustomCategory } = useCustomCategories();
   const isEditing = Boolean(expense);
@@ -44,6 +105,35 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
   // window.confirm() は iOS の PWA（ホーム画面から起動したアプリ）で正しく動作しないことがあるため、
   // アプリ内の確認パネルに置き換えている。
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
+
+  // ドラッグ中に並び順の保存(Supabase往復)を待たず即座に画面へ反映するためのローカルコピー。
+  // categories が変わったら追従させる（Reactの「レンダー中にstateを調整する」パターン。useEffectは使わない）
+  const [prevCategories, setPrevCategories] = useState(categories);
+  const [orderedCategories, setOrderedCategories] = useState(categories);
+  if (categories !== prevCategories) {
+    setPrevCategories(categories);
+    setOrderedCategories(categories);
+  }
+
+  // ドラッグ対象には touch-action: none を設定しているため、タップ開始点のブラウザ標準スクロールは
+  // 発生しない。distance方式にして、単純なタップでのカテゴリ選択とドラッグ開始を区別する
+  const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  const handleCategoryDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setOrderedCategories((prev) => {
+      const oldIndex = prev.findIndex((category) => category.id === active.id);
+      const newIndex = prev.findIndex((category) => category.id === over.id);
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  };
+
+  const handleCategoryDragEnd = (event: DragEndEvent) => {
+    if (!event.over) return;
+    void setCategoryOrder(orderedCategories.map((category) => category.id));
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -117,37 +207,26 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
 
       <div>
         <span className="text-xs font-bold text-ink-muted">カテゴリ</span>
+        <p className="mt-1 text-[11px] text-ink-muted">ドラッグすると並び順を変更できます</p>
         <div className="mt-2 grid grid-cols-3 gap-2">
-          {categories.map((category) => {
-            const active = category.id === categoryId;
-            return (
-              <div key={category.id} className="relative">
-                <button
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setCategoryId(category.id)}
-                  className={`flex w-full flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium transition-colors ${
-                    active ? "bg-brand-500 text-white" : "bg-surface text-ink-muted shadow-sm"
-                  }`}
-                >
-                  <span aria-hidden className="text-lg">
-                    {category.emoji}
-                  </span>
-                  {category.label}
-                </button>
-                {category.isCustom && (
-                  <button
-                    type="button"
-                    aria-label={`${category.label}を削除`}
-                    onClick={() => setDeletingCategoryId(category.id)}
-                    className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-status-over text-[10px] font-bold text-white shadow"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            );
-          })}
+          <DndContext
+            sensors={dragSensors}
+            collisionDetection={closestCenter}
+            onDragOver={handleCategoryDragOver}
+            onDragEnd={handleCategoryDragEnd}
+          >
+            <SortableContext items={orderedCategories.map((category) => category.id)} strategy={rectSortingStrategy}>
+              {orderedCategories.map((category) => (
+                <SortableCategoryButton
+                  key={category.id}
+                  category={category}
+                  active={category.id === categoryId}
+                  onSelect={() => setCategoryId(category.id)}
+                  onRequestDelete={category.isCustom ? () => setDeletingCategoryId(category.id) : null}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
           <button
             type="button"
             onClick={() => setAddingCategory((v) => !v)}
