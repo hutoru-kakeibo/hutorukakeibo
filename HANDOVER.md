@@ -32,6 +32,7 @@
 - カスタムカテゴリ（プレミアムプラン限定 / **課金処理自体は未実装**）
 - カテゴリ別予算（全体予算とは別に任意設定。キャラクター判定は全体予算のみ参照、診断へは超過額を反映。ホーム/統計に進捗バーで可視化）
 - PWA（オフラインキャッシュ・ホーム画面インストール）
+- 予算管理のネスト画面（設定タブ → 「予算管理」→「家計簿全体の予算」「カテゴリ別の予算」。ルートは `/settings/budget`, `/settings/budget/overall`, `/settings/budget/categories`）
 
 ---
 
@@ -372,7 +373,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | Supabase接続 | Google OAuth 本実装、localStorage → DB移行。**RLS無限再帰バグを発見・修正**（§4.2） |
 | 機能追加 | 複数家計簿 → 取引履歴/ソート/再編集 → サブスク前段階（カスタムカテゴリ）→ 家計簿削除 → カテゴリ別予算 → ホーム/統計への予算進捗の可視化 |
 | デプロイ | GitHub + Vercel 連携、アプリ名変更、OGP設定 |
-| デザイン調整 | 診断バッジを「ランク文字」→「AI」表記に変更、ホーム画面アイコン（icon-192/512, apple-touch-icon）を `og-image.png` ベースのround.pngキャラクター意匠に統一 |
+| デザイン調整 | 診断バッジを「ランク文字」→「AI」表記に変更、ホーム画面アイコン（icon-192/512, apple-touch-icon）を `og-image.png` ベースのround.pngキャラクター意匠に統一、設定タブの予算関連UIを「予算管理」ネスト画面へ再編（`/settings/budget` 配下） |
 
 ---
 

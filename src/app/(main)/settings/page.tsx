@@ -1,24 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { CategoryBudgetsSection } from "@/components/expenses/CategoryBudgetsSection";
 import { CategoryManageSection } from "@/components/expenses/CategoryManageSection";
 import { HouseholdManageCard } from "@/components/household/HouseholdManageCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
-import { formatYen } from "@/lib/format";
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const { households, activeHousehold, loading, setMonthlyBudget, joinByInviteCode } = useHousehold();
-  const [budgetDraft, setBudgetDraft] = useState(String(activeHousehold?.monthlyBudget ?? 0));
+  const { households, activeHousehold, loading, joinByInviteCode } = useHousehold();
   const [joinCode, setJoinCode] = useState("");
   const [joinFeedback, setJoinFeedback] = useState<string | null>(null);
-
-  const handleSaveBudget = () => {
-    const value = Number(budgetDraft);
-    if (Number.isFinite(value) && value >= 0) void setMonthlyBudget(Math.round(value));
-  };
 
   const handleJoin = async () => {
     if (!joinCode.trim()) return;
@@ -46,34 +39,15 @@ export default function SettingsPage() {
         </button>
       </section>
 
-      <section className="rounded-2xl bg-surface p-5 shadow-sm">
-        <label htmlFor="monthlyBudget" className="text-xs font-bold text-ink-muted">
-          表示中の家計簿の予算
-        </label>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-ink-muted">¥</span>
-          <input
-            id="monthlyBudget"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={budgetDraft}
-            onChange={(event) => setBudgetDraft(event.target.value.replace(/[^0-9]/g, ""))}
-            className="w-full rounded-xl bg-canvas px-3 py-2 text-lg font-bold outline-none"
-          />
-        </div>
-        <p className="mt-1 text-xs text-ink-muted">
-          現在の設定: {formatYen(activeHousehold?.monthlyBudget ?? 0)}
-        </p>
-        <button
-          type="button"
-          onClick={handleSaveBudget}
-          className="mt-4 w-full rounded-xl bg-brand-500 py-2 text-sm font-bold text-white"
-        >
-          保存する
-        </button>
-      </section>
-
-      <CategoryBudgetsSection />
+      <Link
+        href="/settings/budget"
+        className="flex items-center justify-between rounded-2xl bg-surface p-5 shadow-sm active:bg-canvas"
+      >
+        <p className="text-sm font-bold">予算管理</p>
+        <span aria-hidden className="text-ink-muted">
+          ›
+        </span>
+      </Link>
 
       <CategoryManageSection />
 
