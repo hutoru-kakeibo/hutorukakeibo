@@ -111,6 +111,10 @@ export interface Database {
         Args: { target_household_id: string };
         Returns: undefined;
       };
+      delete_household: {
+        Args: { target_household_id: string };
+        Returns: undefined;
+      };
     };
   };
 }

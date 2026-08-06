@@ -48,6 +48,7 @@ interface HouseholdContextValue {
   joinByInviteCode: (code: string) => Promise<ActionResult>;
   removeMember: (householdId: string, userId: string) => Promise<ActionResult>;
   leaveHousehold: (householdId: string) => Promise<ActionResult>;
+  deleteHousehold: (householdId: string) => Promise<ActionResult>;
 }
 
 const HouseholdContext = createContext<HouseholdContextValue | null>(null);
@@ -313,6 +314,22 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [supabase, reload],
   );
 
+  const deleteHousehold = useCallback(
+    async (householdId: string): Promise<ActionResult> => {
+      const { error } = await supabase.rpc("delete_household", { target_household_id: householdId });
+      if (error) {
+        const message =
+          error.message?.includes("cannot_delete_last_household")
+            ? "最後の家計簿は削除できません"
+            : "削除に失敗しました（ホストのみ削除できます）";
+        return { ok: false, message };
+      }
+      await reload();
+      return { ok: true };
+    },
+    [supabase, reload],
+  );
+
   const value = useMemo<HouseholdContextValue>(
     () => ({
       households,
@@ -326,6 +343,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       joinByInviteCode,
       removeMember,
       leaveHousehold,
+      deleteHousehold,
     }),
     [
       households,
@@ -339,6 +357,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       joinByInviteCode,
       removeMember,
       leaveHousehold,
+      deleteHousehold,
     ],
   );
 

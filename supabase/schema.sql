@@ -250,6 +250,40 @@ $$;
 
 grant execute on function public.leave_household(uuid) to authenticated;
 
+-- ホストが自分の household を削除する。関連データは外部キーの
+-- on delete cascade / on delete set null で自動的に片付く。
+create or replace function public.delete_household(target_household_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  is_owner boolean;
+  member_household_count int;
+begin
+  select (owner_id = auth.uid()) into is_owner
+  from public.households
+  where id = target_household_id;
+
+  if not coalesce(is_owner, false) then
+    raise exception 'not_authorized';
+  end if;
+
+  select count(*) into member_household_count
+  from public.household_members
+  where user_id = auth.uid();
+
+  if member_household_count <= 1 then
+    raise exception 'cannot_delete_last_household';
+  end if;
+
+  delete from public.households where id = target_household_id;
+end;
+$$;
+
+grant execute on function public.delete_household(uuid) to authenticated;
+
 grant execute on function public.join_household_by_invite_code(text) to authenticated;
 
 -- ============================================================

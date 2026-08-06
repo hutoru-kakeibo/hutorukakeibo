@@ -11,12 +11,16 @@ interface HouseholdManageCardProps {
 }
 
 export function HouseholdManageCard({ household, isActive, currentUserId }: HouseholdManageCardProps) {
-  const { switchHousehold, renameHousehold, setHouseholdColor, removeMember, leaveHousehold } = useHousehold();
+  const { households, switchHousehold, renameHousehold, setHouseholdColor, removeMember, leaveHousehold, deleteHousehold } =
+    useHousehold();
   const [expanded, setExpanded] = useState(isActive);
   const [nameDraft, setNameDraft] = useState(household.name);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [memberError, setMemberError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const isOnlyHousehold = households.length <= 1;
 
   const isHost = household.ownerId === currentUserId;
 
@@ -46,6 +50,15 @@ export function HouseholdManageCard({ household, isActive, currentUserId }: Hous
     const result = await leaveHousehold(household.id);
     if (!result.ok) setMemberError(result.message);
     setConfirmingLeave(false);
+  };
+
+  const handleDelete = async () => {
+    setDeleteError(null);
+    const result = await deleteHousehold(household.id);
+    if (!result.ok) {
+      setDeleteError(result.message);
+      setConfirmingDelete(false);
+    }
   };
 
   return (
@@ -191,6 +204,47 @@ export function HouseholdManageCard({ household, isActive, currentUserId }: Hous
                   この家計簿から退出する
                 </button>
               )}
+            </div>
+          )}
+
+          {isHost && (
+            <div className="border-t border-black/5 pt-4">
+              {isOnlyHousehold ? (
+                <p className="text-[11px] text-ink-muted">
+                  最後の1つの家計簿は削除できません。先に別の家計簿を作成してください。
+                </p>
+              ) : confirmingDelete ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-status-over">
+                    「{household.name}」を削除すると、支出記録・カテゴリ・メンバー情報がすべて完全に削除されます。この操作は元に戻せません。
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete()}
+                      className="flex-1 rounded-xl bg-status-over py-2 text-xs font-bold text-white"
+                    >
+                      完全に削除する
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingDelete(false)}
+                      className="rounded-xl border border-black/10 px-3 py-2 text-xs text-ink-muted"
+                    >
+                      やめる
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  className="w-full rounded-xl border border-status-over/30 py-2 text-xs font-medium text-status-over"
+                >
+                  この家計簿を削除する
+                </button>
+              )}
+              {deleteError && <p className="mt-1 text-xs text-status-over">{deleteError}</p>}
             </div>
           )}
         </div>
