@@ -13,11 +13,12 @@ export function DiagnosisCard({ diagnosis }: { diagnosis: Diagnosis }) {
     <section className="rounded-2xl bg-surface p-5 shadow-sm">
       <div className="flex items-center gap-3">
         <span
-          aria-hidden
-          className="flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white"
+          role="img"
+          aria-label={`AI診断ランク: ${diagnosis.rank}`}
+          className="flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-extrabold text-white"
           style={{ backgroundColor: RANK_COLOR[diagnosis.rank] }}
         >
-          {diagnosis.rank}
+          AI
         </span>
         <div>
           <p className="text-xs font-bold text-ink-muted">今月の家計簿診断</p>
