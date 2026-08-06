@@ -18,6 +18,16 @@ export interface CategoryTotal {
   percent: number;
 }
 
+/** 支出が無いカテゴリは含まない、カテゴリ別の支出合計マップ（当月分） */
+export function sumExpensesByCategoryId(expenses: Expense[], monthKey: string): Map<string, number> {
+  const totalsByCategory = new Map<string, number>();
+  for (const expense of expenses) {
+    if (!expense.date.startsWith(monthKey)) continue;
+    totalsByCategory.set(expense.categoryId, (totalsByCategory.get(expense.categoryId) ?? 0) + expense.amount);
+  }
+  return totalsByCategory;
+}
+
 /**
  * 支出額の多い順。0円のカテゴリは円グラフ/凡例に出す意味がないため除外する。
  * categories には固定カテゴリ＋カスタムカテゴリを合わせたものを渡す（useAllCategories 参照）。
@@ -28,14 +38,8 @@ export function groupExpensesByCategory(
   monthKey: string,
   categories: AnyCategory[],
 ): CategoryTotal[] {
-  const monthly = expenses.filter((expense) => expense.date.startsWith(monthKey));
-  const total = monthly.reduce((sum, expense) => sum + expense.amount, 0);
-
-  const totalsByCategory = new Map<string, number>();
-  for (const expense of monthly) {
-    totalsByCategory.set(expense.categoryId, (totalsByCategory.get(expense.categoryId) ?? 0) + expense.amount);
-  }
-
+  const totalsByCategory = sumExpensesByCategoryId(expenses, monthKey);
+  const total = [...totalsByCategory.values()].reduce((sum, value) => sum + value, 0);
   const categoryById = new Map(categories.map((category) => [category.id, category]));
 
   return [...totalsByCategory.entries()]

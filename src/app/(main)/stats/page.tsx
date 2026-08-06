@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { CategoryBudgetProgressList } from "@/components/expenses/CategoryBudgetProgressList";
 import { CategoryPieChart, PIE_COLORS } from "@/components/stats/CategoryPieChart";
 import { DailyBarChart } from "@/components/stats/DailyBarChart";
 import { DiagnosisCard } from "@/components/stats/DiagnosisCard";
@@ -42,6 +43,8 @@ export default function StatsPage() {
       </header>
 
       <DiagnosisCard diagnosis={diagnosis} />
+
+      <CategoryBudgetProgressList />
 
       <section className="rounded-2xl bg-surface p-5 shadow-sm">
         <div className="flex items-center justify-between">

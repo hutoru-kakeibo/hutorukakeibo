@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { CharacterAvatar } from "@/components/character/CharacterAvatar";
+import { CategoryBudgetProgressList } from "@/components/expenses/CategoryBudgetProgressList";
 import { HouseholdSwitcher } from "@/components/household/HouseholdSwitcher";
 import { ShareButton } from "@/components/share/ShareButton";
 import { useAuth } from "@/contexts/AuthContext";
@@ -83,6 +84,8 @@ export default function HomePage() {
           {remaining >= 0 ? `残り ${formatYen(remaining)}` : `${formatYen(Math.abs(remaining))} 超過`}
         </p>
       </section>
+
+      <CategoryBudgetProgressList />
 
       <Link
         href="/input"
