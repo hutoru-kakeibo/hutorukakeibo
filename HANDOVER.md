@@ -372,6 +372,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | Supabase接続 | Google OAuth 本実装、localStorage → DB移行。**RLS無限再帰バグを発見・修正**（§4.2） |
 | 機能追加 | 複数家計簿 → 取引履歴/ソート/再編集 → サブスク前段階（カスタムカテゴリ）→ 家計簿削除 → カテゴリ別予算 → ホーム/統計への予算進捗の可視化 |
 | デプロイ | GitHub + Vercel 連携、アプリ名変更、OGP設定 |
+| デザイン調整 | 診断バッジを「ランク文字」→「AI」表記に変更、ホーム画面アイコン（icon-192/512, apple-touch-icon）を `og-image.png` ベースのround.pngキャラクター意匠に統一 |
 
 ---
 
