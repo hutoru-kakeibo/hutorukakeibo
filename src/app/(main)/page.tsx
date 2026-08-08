@@ -182,6 +182,14 @@ export default function HomePage() {
             })}
           </ul>
         )}
+        {recentExpenses.length > 0 && (
+          <Link
+            href="/stats/transactions"
+            className="mt-2 block rounded-xl py-2 text-center text-xs font-bold text-brand-600 active:bg-canvas"
+          >
+            もっと見る →
+          </Link>
+        )}
       </section>
     </div>
   );
