@@ -11,19 +11,18 @@ import { INCOME_CATEGORIES, resolveIncomeCategory } from "@/lib/expenses/incomeC
 import { formatYen } from "@/lib/format";
 
 type SortKey = "date" | "amount";
-type TransactionType = "expense" | "income";
 
 function TransactionsContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get("category");
-  const transactionType: TransactionType = searchParams.get("type") === "income" ? "income" : "expense";
-  const { expenses, incomes } = useExpenses();
+  const { transactions } = useExpenses();
   const { categories: expenseCategories, resolve: resolveExpenseCategory } = useAllCategories();
   const { activeHousehold } = useHousehold();
 
-  const sourceExpenses = transactionType === "income" ? incomes : expenses;
-  const categoryList = transactionType === "income" ? INCOME_CATEGORIES : expenseCategories;
-  const resolveCategory = transactionType === "income" ? resolveIncomeCategory : resolveExpenseCategory;
+  // カテゴリIDは支出/収入で名前空間が重ならないため、これで種別を判別できる
+  const isExpenseCategoryId = (id: string) => expenseCategories.some((category) => category.id === id);
+  const resolveCategory = (categoryId: string) =>
+    isExpenseCategoryId(categoryId) ? resolveExpenseCategory(categoryId) : resolveIncomeCategory(categoryId);
 
   // 2人以上で共有している家計簿でのみ「誰が記録したか」を表示する
   const showRecorder = (activeHousehold?.members.length ?? 0) > 1;
@@ -46,8 +45,8 @@ function TransactionsContent() {
   const filtered = useMemo(() => {
     const base =
       categoryFilter === "all"
-        ? sourceExpenses
-        : sourceExpenses.filter((expense) => expense.categoryId === categoryFilter);
+        ? transactions
+        : transactions.filter((transaction) => transaction.categoryId === categoryFilter);
 
     const sorted = [...base].sort((a, b) => {
       if (sortKey === "amount") return b.amount - a.amount;
@@ -55,9 +54,16 @@ function TransactionsContent() {
     });
     if (sortDirection === "asc") sorted.reverse();
     return sorted;
-  }, [sourceExpenses, categoryFilter, sortKey, sortDirection]);
+  }, [transactions, categoryFilter, sortKey, sortDirection]);
 
-  const total = useMemo(() => filtered.reduce((sum, expense) => sum + expense.amount, 0), [filtered]);
+  const expenseTotal = useMemo(
+    () => filtered.filter((transaction) => transaction.type === "expense").reduce((sum, t) => sum + t.amount, 0),
+    [filtered],
+  );
+  const incomeTotal = useMemo(
+    () => filtered.filter((transaction) => transaction.type === "income").reduce((sum, t) => sum + t.amount, 0),
+    [filtered],
+  );
 
   return (
     <div className="flex flex-col gap-4 px-6 pt-8 pb-4">
@@ -65,7 +71,7 @@ function TransactionsContent() {
         <Link href="/stats" aria-label="統計に戻る" className="text-lg text-ink-muted">
           ←
         </Link>
-        <h1 className="text-lg font-bold">{transactionType === "income" ? "収入履歴" : "支出履歴"}</h1>
+        <h1 className="text-lg font-bold">取引履歴</h1>
       </div>
 
       <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1">
@@ -78,7 +84,19 @@ function TransactionsContent() {
         >
           すべて
         </button>
-        {categoryList.map((category) => (
+        {expenseCategories.map((category) => (
+          <button
+            key={category.id}
+            type="button"
+            onClick={() => setCategoryFilter(category.id)}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
+              categoryFilter === category.id ? "bg-brand-500 text-white" : "bg-surface text-ink-muted shadow-sm"
+            }`}
+          >
+            {category.emoji} {category.label}
+          </button>
+        ))}
+        {INCOME_CATEGORIES.map((category) => (
           <button
             key={category.id}
             type="button"
@@ -109,19 +127,20 @@ function TransactionsContent() {
       </div>
 
       <p className="text-xs text-ink-muted">
-        {filtered.length}件 ・ 合計 {formatYen(total)}
+        {filtered.length}件 ・ 支出 {formatYen(expenseTotal)} ・ 収入 {formatYen(incomeTotal)}
       </p>
 
       {filtered.length === 0 ? (
         <p className="py-8 text-center text-sm text-ink-muted">記録がありません</p>
       ) : (
         <ul className="space-y-2">
-          {filtered.map((expense) => {
-            const category = resolveCategory(expense.categoryId);
+          {filtered.map((transaction) => {
+            const category = resolveCategory(transaction.categoryId);
+            const isIncome = transaction.type === "income";
             return (
-              <li key={expense.id}>
+              <li key={transaction.id}>
                 <Link
-                  href={`/input?id=${expense.id}`}
+                  href={`/input?id=${transaction.id}`}
                   className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 shadow-sm"
                 >
                   <div className="flex items-center gap-3">
@@ -131,13 +150,16 @@ function TransactionsContent() {
                     <div>
                       <p className="text-sm font-medium">{category.label}</p>
                       <p className="text-xs text-ink-muted">
-                        {expense.date}
-                        {expense.memo ? ` ・ ${expense.memo}` : ""}
-                        {showRecorder ? ` ・ 👤 ${resolveMemberName(expense.createdBy)}` : ""}
+                        {transaction.date}
+                        {transaction.memo ? ` ・ ${transaction.memo}` : ""}
+                        {showRecorder ? ` ・ 👤 ${resolveMemberName(transaction.createdBy)}` : ""}
                       </p>
                     </div>
                   </div>
-                  <span className="text-sm font-bold">{formatYen(expense.amount)}</span>
+                  <span className={`text-sm font-bold ${isIncome ? "text-brand-600" : ""}`}>
+                    {isIncome ? "+" : ""}
+                    {formatYen(transaction.amount)}
+                  </span>
                 </Link>
               </li>
             );
