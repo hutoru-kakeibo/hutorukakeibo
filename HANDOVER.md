@@ -34,6 +34,8 @@
 - PWA（オフラインキャッシュ・ホーム画面インストール）
 - 予算管理のネスト画面（設定タブ → 「予算管理」→「家計簿全体の予算」「カテゴリ別の予算」。ルートは `/settings/budget`, `/settings/budget/overall`, `/settings/budget/categories`）
 - 「記録」タブのカテゴリをドラッグで並べ替え（`@dnd-kit`。順序は `households.category_order`（jsonb配列）に保存し、家計簿メンバー間で共有される。並び順は「記録」画面だけでなく `useAllCategories` を使う全画面に反映される）
+- 設定タブからユーザー自身の表示名を変更可能（`profiles.display_name` を更新。DBスキーマ変更なし、既存のRLSでカバー済み）
+- 2人以上で共有する家計簿では、ホーム/取引履歴に「誰が記録したか」（👤 表示名）を表示（`expenses.created_by` は既存カラム。アプリ側で未使用だったのを `Expense.createdBy` として利用するように変更。DBスキーマ変更なし）
 
 ---
 
@@ -377,6 +379,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | デプロイ | GitHub + Vercel 連携、アプリ名変更、OGP設定 |
 | デザイン調整 | 診断バッジを「ランク文字」→「AI」表記に変更、ホーム画面アイコン（icon-192/512, apple-touch-icon）を `og-image.png` ベースのround.pngキャラクター意匠に統一、設定タブの予算関連UIを「予算管理」ネスト画面へ再編（`/settings/budget` 配下） |
 | 機能追加 | 「記録」タブのカテゴリをドラッグ&ドロップで並べ替え可能に（`@dnd-kit` 導入、`households.category_order` に永続化） |
+| 機能追加 | 表示名のユーザー自身での変更、2人以上の共有家計簿での記録者表示（ホーム/取引履歴） |
 
 ---
 

@@ -47,6 +47,7 @@ interface HouseholdContextValue {
   setHouseholdColor: (id: string, color: string) => Promise<void>;
   setMonthlyBudget: (value: number) => Promise<void>;
   setCategoryOrder: (order: string[]) => Promise<void>;
+  updateMyDisplayName: (name: string) => Promise<ActionResult>;
   joinByInviteCode: (code: string) => Promise<ActionResult>;
   removeMember: (householdId: string, userId: string) => Promise<ActionResult>;
   leaveHousehold: (householdId: string) => Promise<ActionResult>;
@@ -295,6 +296,36 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [supabase, activeHousehold],
   );
 
+  const updateMyDisplayName = useCallback(
+    async (name: string): Promise<ActionResult> => {
+      const trimmed = name.trim();
+      if (!trimmed) return { ok: false, message: "表示名を入力してください" };
+
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return { ok: false, message: "ログインしていません" };
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ display_name: trimmed })
+        .eq("id", userData.user.id);
+      if (error) {
+        console.error("[profile] 表示名の更新に失敗しました", error);
+        return { ok: false, message: "更新に失敗しました" };
+      }
+
+      setHouseholds((prev) =>
+        prev.map((h) => ({
+          ...h,
+          members: h.members.map((m) =>
+            m.userId === userData.user.id ? { ...m, displayName: trimmed } : m,
+          ),
+        })),
+      );
+      return { ok: true };
+    },
+    [supabase],
+  );
+
   const joinByInviteCode = useCallback(
     async (code: string): Promise<ActionResult> => {
       const { error } = await supabase.rpc("join_household_by_invite_code", { code });
@@ -362,6 +393,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       setHouseholdColor,
       setMonthlyBudget,
       setCategoryOrder,
+      updateMyDisplayName,
       joinByInviteCode,
       removeMember,
       leaveHousehold,
@@ -377,6 +409,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       setHouseholdColor,
       setMonthlyBudget,
       setCategoryOrder,
+      updateMyDisplayName,
       joinByInviteCode,
       removeMember,
       leaveHousehold,

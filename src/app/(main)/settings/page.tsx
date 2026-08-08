@@ -9,9 +9,24 @@ import { useHousehold } from "@/contexts/HouseholdContext";
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const { households, activeHousehold, loading, joinByInviteCode } = useHousehold();
+  const { households, activeHousehold, loading, joinByInviteCode, updateMyDisplayName } = useHousehold();
   const [joinCode, setJoinCode] = useState("");
   const [joinFeedback, setJoinFeedback] = useState<string | null>(null);
+
+  const myDisplayName =
+    activeHousehold?.members.find((member) => member.userId === user?.id)?.displayName ??
+    user?.user_metadata?.full_name ??
+    user?.user_metadata?.name ??
+    "ユーザー";
+  const [nameDraft, setNameDraft] = useState<string | undefined>(undefined);
+  const [nameFeedback, setNameFeedback] = useState<string | null>(null);
+  const displayNameValue = nameDraft ?? myDisplayName;
+
+  const handleSaveDisplayName = async () => {
+    const result = await updateMyDisplayName(displayNameValue);
+    setNameFeedback(result.ok ? "更新しました" : result.message);
+    if (result.ok) setNameDraft(undefined);
+  };
 
   const handleJoin = async () => {
     if (!joinCode.trim()) return;
@@ -25,11 +40,27 @@ export default function SettingsPage() {
       <h1 className="text-lg font-bold">設定</h1>
 
       <section className="rounded-2xl bg-surface p-5 shadow-sm">
-        <p className="text-xs font-bold text-ink-muted">アカウント</p>
-        <p className="mt-2 text-sm font-medium">
-          {user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? "ユーザー"}
-        </p>
-        <p className="text-xs text-ink-muted">{user?.email}</p>
+        <label htmlFor="displayName" className="text-xs font-bold text-ink-muted">
+          表示名
+        </label>
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            id="displayName"
+            value={displayNameValue}
+            onChange={(event) => setNameDraft(event.target.value)}
+            placeholder="表示名"
+            className="w-full rounded-xl bg-canvas px-3 py-2 text-sm font-medium outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => void handleSaveDisplayName()}
+            className="shrink-0 rounded-xl bg-brand-500 px-3 py-2 text-xs font-bold text-white"
+          >
+            保存
+          </button>
+        </div>
+        {nameFeedback && <p className="mt-1 text-xs text-ink-muted">{nameFeedback}</p>}
+        <p className="mt-2 text-xs text-ink-muted">{user?.email}</p>
         <button
           type="button"
           onClick={() => void logout()}

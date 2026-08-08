@@ -7,9 +7,10 @@ export interface Expense {
   date: string; // YYYY-MM-DD
   memo: string;
   createdAt: string; // ISO 8601
+  createdBy: string; // 記録したユーザーのID
 }
 
-export type NewExpenseInput = Omit<Expense, "id" | "createdAt">;
+export type NewExpenseInput = Omit<Expense, "id" | "createdAt" | "createdBy">;
 
 export interface AnyCategory {
   id: string;

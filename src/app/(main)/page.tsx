@@ -44,6 +44,11 @@ export default function HomePage() {
     [expenses],
   );
 
+  // 2人以上で共有している家計簿でのみ「誰が記録したか」を表示する
+  const showRecorder = (activeHousehold?.members.length ?? 0) > 1;
+  const resolveMemberName = (userId: string) =>
+    activeHousehold?.members.find((member) => member.userId === userId)?.displayName ?? "メンバー";
+
   if (householdLoading) {
     return (
       <div className="flex flex-1 items-center justify-center px-6 pt-8">
@@ -118,6 +123,7 @@ export default function HomePage() {
                       <p className="text-xs text-ink-muted">
                         {expense.date}
                         {expense.memo ? ` ・ ${expense.memo}` : ""}
+                        {showRecorder ? ` ・ 👤 ${resolveMemberName(expense.createdBy)}` : ""}
                       </p>
                     </div>
                   </div>

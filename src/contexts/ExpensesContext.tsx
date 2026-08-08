@@ -34,6 +34,7 @@ function mapRow(row: ExpenseRow): Expense {
     date: row.expense_date,
     memo: row.memo,
     createdAt: row.created_at,
+    createdBy: row.created_by,
   };
 }
 
