@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CharacterAvatar } from "@/components/character/CharacterAvatar";
 import { CategoryBudgetProgressList } from "@/components/expenses/CategoryBudgetProgressList";
+import { SortButton, type SortDirection } from "@/components/expenses/SortButton";
 import { HouseholdSwitcher } from "@/components/household/HouseholdSwitcher";
 import { ShareButton } from "@/components/share/ShareButton";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +14,8 @@ import { useAllCategories } from "@/hooks/useAllCategories";
 import { computeCharacterStatus } from "@/lib/character/logic";
 import { getMonthKey, sumExpensesForMonth } from "@/lib/expenses/utils";
 import { formatYen } from "@/lib/format";
+
+type SortKey = "date" | "amount";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -39,10 +42,28 @@ export default function HomePage() {
     user?.email ??
     "ゲスト";
 
-  const recentExpenses = useMemo(
-    () => [...expenses].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5),
-    [expenses],
-  );
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("desc");
+    }
+  };
+
+  const recentExpenses = useMemo(() => {
+    // 直近に記録された5件を対象に、選んだ基準で並び替える
+    const recent = [...expenses].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
+    const sorted = [...recent].sort((a, b) => {
+      if (sortKey === "amount") return b.amount - a.amount;
+      return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt);
+    });
+    if (sortDirection === "asc") sorted.reverse();
+    return sorted;
+  }, [expenses, sortKey, sortDirection]);
 
   // 2人以上で共有している家計簿でのみ「誰が記録したか」を表示する
   const showRecorder = (activeHousehold?.members.length ?? 0) > 1;
@@ -102,7 +123,25 @@ export default function HomePage() {
       <ShareButton status={status} spent={monthlySpent} budget={monthlyBudget} monthKey={monthKey} />
 
       <section>
-        <h2 className="text-sm font-bold text-ink-muted">最近の記録</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-ink-muted">最近の記録</h2>
+          {recentExpenses.length > 0 && (
+            <div className="flex items-center gap-2">
+              <SortButton
+                label="日付"
+                active={sortKey === "date"}
+                direction={sortDirection}
+                onClick={() => handleSort("date")}
+              />
+              <SortButton
+                label="金額"
+                active={sortKey === "amount"}
+                direction={sortDirection}
+                onClick={() => handleSort("amount")}
+              />
+            </div>
+          )}
+        </div>
         {recentExpenses.length === 0 ? (
           <p className="mt-2 text-sm text-ink-muted">まだ記録がありません</p>
         ) : (

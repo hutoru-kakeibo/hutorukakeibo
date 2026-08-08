@@ -3,38 +3,13 @@
 import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { SortButton, type SortDirection } from "@/components/expenses/SortButton";
 import { useExpenses } from "@/contexts/ExpensesContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
 import { formatYen } from "@/lib/format";
 
 type SortKey = "date" | "amount";
-type SortDirection = "asc" | "desc";
-
-function SortButton({
-  label,
-  active,
-  direction,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  direction: SortDirection;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium ${
-        active ? "bg-brand-500 text-white" : "bg-surface text-ink-muted shadow-sm"
-      }`}
-    >
-      {label}
-      {active && <span aria-hidden>{direction === "desc" ? "↓" : "↑"}</span>}
-    </button>
-  );
-}
 
 function TransactionsContent() {
   const searchParams = useSearchParams();
