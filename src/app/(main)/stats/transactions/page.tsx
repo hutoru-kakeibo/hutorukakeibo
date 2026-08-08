@@ -7,16 +7,23 @@ import { SortButton, type SortDirection } from "@/components/expenses/SortButton
 import { useExpenses } from "@/contexts/ExpensesContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
+import { INCOME_CATEGORIES, resolveIncomeCategory } from "@/lib/expenses/incomeCategories";
 import { formatYen } from "@/lib/format";
 
 type SortKey = "date" | "amount";
+type TransactionType = "expense" | "income";
 
 function TransactionsContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get("category");
-  const { expenses } = useExpenses();
-  const { categories, resolve } = useAllCategories();
+  const transactionType: TransactionType = searchParams.get("type") === "income" ? "income" : "expense";
+  const { expenses, incomes } = useExpenses();
+  const { categories: expenseCategories, resolve: resolveExpenseCategory } = useAllCategories();
   const { activeHousehold } = useHousehold();
+
+  const sourceExpenses = transactionType === "income" ? incomes : expenses;
+  const categoryList = transactionType === "income" ? INCOME_CATEGORIES : expenseCategories;
+  const resolveCategory = transactionType === "income" ? resolveIncomeCategory : resolveExpenseCategory;
 
   // 2人以上で共有している家計簿でのみ「誰が記録したか」を表示する
   const showRecorder = (activeHousehold?.members.length ?? 0) > 1;
@@ -38,7 +45,9 @@ function TransactionsContent() {
 
   const filtered = useMemo(() => {
     const base =
-      categoryFilter === "all" ? expenses : expenses.filter((expense) => expense.categoryId === categoryFilter);
+      categoryFilter === "all"
+        ? sourceExpenses
+        : sourceExpenses.filter((expense) => expense.categoryId === categoryFilter);
 
     const sorted = [...base].sort((a, b) => {
       if (sortKey === "amount") return b.amount - a.amount;
@@ -46,7 +55,7 @@ function TransactionsContent() {
     });
     if (sortDirection === "asc") sorted.reverse();
     return sorted;
-  }, [expenses, categoryFilter, sortKey, sortDirection]);
+  }, [sourceExpenses, categoryFilter, sortKey, sortDirection]);
 
   const total = useMemo(() => filtered.reduce((sum, expense) => sum + expense.amount, 0), [filtered]);
 
@@ -56,7 +65,7 @@ function TransactionsContent() {
         <Link href="/stats" aria-label="統計に戻る" className="text-lg text-ink-muted">
           ←
         </Link>
-        <h1 className="text-lg font-bold">取引履歴</h1>
+        <h1 className="text-lg font-bold">{transactionType === "income" ? "収入履歴" : "支出履歴"}</h1>
       </div>
 
       <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1">
@@ -69,7 +78,7 @@ function TransactionsContent() {
         >
           すべて
         </button>
-        {categories.map((category) => (
+        {categoryList.map((category) => (
           <button
             key={category.id}
             type="button"
@@ -108,7 +117,7 @@ function TransactionsContent() {
       ) : (
         <ul className="space-y-2">
           {filtered.map((expense) => {
-            const category = resolve(expense.categoryId);
+            const category = resolveCategory(expense.categoryId);
             return (
               <li key={expense.id}>
                 <Link

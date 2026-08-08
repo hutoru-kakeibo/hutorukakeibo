@@ -16,10 +16,18 @@ import { useHousehold } from "./HouseholdContext";
 
 type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
 
+const SELECT_COLUMNS = "id, household_id, created_by, category_id, amount, expense_date, memo, type, created_at";
+
 interface ExpensesContextValue {
+  /** type === 'expense' の記録のみ */
   expenses: Expense[];
+  /** type === 'income' の記録のみ */
+  incomes: Expense[];
+  /** 支出・収入をまとめた全件（編集画面でのID検索などに使う） */
+  transactions: Expense[];
   loading: boolean;
   addExpense: (input: NewExpenseInput) => Promise<void>;
+  addIncome: (input: NewExpenseInput) => Promise<void>;
   updateExpense: (id: string, input: NewExpenseInput) => Promise<void>;
   removeExpense: (id: string) => Promise<void>;
 }
@@ -35,25 +43,26 @@ function mapRow(row: ExpenseRow): Expense {
     memo: row.memo,
     createdAt: row.created_at,
     createdBy: row.created_by,
+    type: row.type === "income" ? "income" : "expense",
   };
 }
 
 export function ExpensesProvider({ children }: { children: ReactNode }) {
   const { activeHousehold: household } = useHousehold();
   const supabase = useMemo(() => createClient(), []);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [transactions, setTransactions] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     // 効果(useEffect)本体から同期的に setState してしまわないよう、必ずマイクロタスクを1つ挟む
-    async function loadExpenses() {
+    async function loadTransactions() {
       await Promise.resolve();
       if (cancelled) return;
 
       if (!household) {
-        setExpenses([]);
+        setTransactions([]);
         setLoading(false);
         return;
       }
@@ -61,15 +70,15 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       const { data, error } = await supabase
         .from("expenses")
-        .select("id, household_id, created_by, category_id, amount, expense_date, memo, created_at")
+        .select(SELECT_COLUMNS)
         .eq("household_id", household.id)
         .order("expense_date", { ascending: false });
       if (cancelled) return;
       if (error) console.error("[expenses] 一覧の取得に失敗しました", error);
-      setExpenses((data ?? []).map(mapRow));
+      setTransactions((data ?? []).map(mapRow));
       setLoading(false);
     }
-    loadExpenses();
+    loadTransactions();
 
     if (!household) return;
 
@@ -82,13 +91,13 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
         (payload) => {
           if (payload.eventType === "INSERT") {
             const row = payload.new as ExpenseRow;
-            setExpenses((prev) => (prev.some((e) => e.id === row.id) ? prev : [mapRow(row), ...prev]));
+            setTransactions((prev) => (prev.some((e) => e.id === row.id) ? prev : [mapRow(row), ...prev]));
           } else if (payload.eventType === "UPDATE") {
             const row = payload.new as ExpenseRow;
-            setExpenses((prev) => prev.map((e) => (e.id === row.id ? mapRow(row) : e)));
+            setTransactions((prev) => prev.map((e) => (e.id === row.id ? mapRow(row) : e)));
           } else if (payload.eventType === "DELETE") {
             const oldRow = payload.old as { id: string };
-            setExpenses((prev) => prev.filter((e) => e.id !== oldRow.id));
+            setTransactions((prev) => prev.filter((e) => e.id !== oldRow.id));
           }
         },
       )
@@ -100,8 +109,8 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
     };
   }, [supabase, household]);
 
-  const addExpense = useCallback(
-    async (input: NewExpenseInput) => {
+  const insertTransaction = useCallback(
+    async (type: Expense["type"], input: NewExpenseInput) => {
       if (!household) return;
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return;
@@ -115,19 +124,30 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
           category_id: input.categoryId,
           expense_date: input.date,
           memo: input.memo,
+          type,
         })
-        .select("id, household_id, created_by, category_id, amount, expense_date, memo, created_at")
+        .select(SELECT_COLUMNS)
         .single();
 
       if (error) {
-        console.error("[expenses] 追加に失敗しました", error);
+        console.error(`[expenses] ${type === "income" ? "収入" : "支出"}の追加に失敗しました`, error);
         return;
       }
       if (data) {
-        setExpenses((prev) => (prev.some((e) => e.id === data.id) ? prev : [mapRow(data), ...prev]));
+        setTransactions((prev) => (prev.some((e) => e.id === data.id) ? prev : [mapRow(data), ...prev]));
       }
     },
     [supabase, household],
+  );
+
+  const addExpense = useCallback(
+    (input: NewExpenseInput) => insertTransaction("expense", input),
+    [insertTransaction],
+  );
+
+  const addIncome = useCallback(
+    (input: NewExpenseInput) => insertTransaction("income", input),
+    [insertTransaction],
   );
 
   const updateExpense = useCallback(
@@ -141,7 +161,7 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
           memo: input.memo,
         })
         .eq("id", id)
-        .select("id, household_id, created_by, category_id, amount, expense_date, memo, created_at")
+        .select(SELECT_COLUMNS)
         .single();
 
       if (error) {
@@ -149,7 +169,7 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (data) {
-        setExpenses((prev) => prev.map((expense) => (expense.id === id ? mapRow(data) : expense)));
+        setTransactions((prev) => prev.map((expense) => (expense.id === id ? mapRow(data) : expense)));
       }
     },
     [supabase],
@@ -162,14 +182,17 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
         console.error("[expenses] 削除に失敗しました", error);
         return;
       }
-      setExpenses((prev) => prev.filter((expense) => expense.id !== id));
+      setTransactions((prev) => prev.filter((expense) => expense.id !== id));
     },
     [supabase],
   );
 
+  const expenses = useMemo(() => transactions.filter((t) => t.type === "expense"), [transactions]);
+  const incomes = useMemo(() => transactions.filter((t) => t.type === "income"), [transactions]);
+
   const value = useMemo<ExpensesContextValue>(
-    () => ({ expenses, loading, addExpense, updateExpense, removeExpense }),
-    [expenses, loading, addExpense, updateExpense, removeExpense],
+    () => ({ expenses, incomes, transactions, loading, addExpense, addIncome, updateExpense, removeExpense }),
+    [expenses, incomes, transactions, loading, addExpense, addIncome, updateExpense, removeExpense],
   );
 
   return <ExpensesContext.Provider value={value}>{children}</ExpensesContext.Provider>;

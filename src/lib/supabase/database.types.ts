@@ -60,6 +60,7 @@ export interface Database {
           category_id: string;
           expense_date: string;
           memo: string;
+          type: string;
           created_at: string;
         };
         Insert: {
@@ -69,12 +70,14 @@ export interface Database {
           category_id: string;
           expense_date: string;
           memo?: string;
+          type?: string;
         };
         Update: {
           amount?: number;
           category_id?: string;
           expense_date?: string;
           memo?: string;
+          type?: string;
         };
         Relationships: [];
       };

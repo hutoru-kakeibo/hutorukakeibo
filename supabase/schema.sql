@@ -48,6 +48,9 @@ create table public.expenses (
   category_id text not null,
   expense_date date not null,
   memo text not null default '',
+  -- 'expense'（支出）と 'income'（収入）の両方をこのテーブルで扱う。
+  -- category_id は type ごとに別の名前空間（支出カテゴリ / 収入カテゴリ）を使う
+  type text not null default 'expense' check (type in ('expense', 'income')),
   created_at timestamptz not null default now()
 );
 

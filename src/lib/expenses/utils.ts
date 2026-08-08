@@ -1,4 +1,11 @@
-import type { AnyCategory, Expense } from "./types";
+import type { Expense } from "./types";
+
+/** カテゴリ一覧として最低限必要な形（支出カテゴリ・収入カテゴリの両方を受け付ける） */
+interface CategoryLike {
+  id: string;
+  label: string;
+  emoji: string;
+}
 
 export function getMonthKey(date: Date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -36,7 +43,7 @@ export function sumExpensesByCategoryId(expenses: Expense[], monthKey: string): 
 export function groupExpensesByCategory(
   expenses: Expense[],
   monthKey: string,
-  categories: AnyCategory[],
+  categories: readonly CategoryLike[],
 ): CategoryTotal[] {
   const totalsByCategory = sumExpensesByCategoryId(expenses, monthKey);
   const total = [...totalsByCategory.values()].reduce((sum, value) => sum + value, 0);

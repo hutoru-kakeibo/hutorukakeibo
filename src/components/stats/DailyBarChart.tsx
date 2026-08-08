@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import type { DailyTotal } from "@/lib/expenses/utils";
 import { formatYen } from "@/lib/format";
 
-export function DailyBarChart({ data }: { data: DailyTotal[] }) {
+export function DailyBarChart({ data, color = "#22a06b" }: { data: DailyTotal[]; color?: string }) {
   return (
     <div style={{ width: "100%", height: 200 }}>
       <ResponsiveContainer>
@@ -13,7 +13,7 @@ export function DailyBarChart({ data }: { data: DailyTotal[] }) {
           <XAxis dataKey="day" interval={4} tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} width={40} />
           <Tooltip formatter={(value) => formatYen(Number(value))} labelFormatter={(day) => `${day}日`} />
-          <Bar dataKey="total" fill="#22a06b" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="total" fill={color} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

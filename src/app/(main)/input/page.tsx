@@ -8,13 +8,19 @@ import { useExpenses } from "@/contexts/ExpensesContext";
 function InputPageContent() {
   const searchParams = useSearchParams();
   const editId = searchParams.get("id");
-  const { expenses } = useExpenses();
-  const editingExpense = editId ? expenses.find((expense) => expense.id === editId) : undefined;
+  const { transactions } = useExpenses();
+  const editingTransaction = editId ? transactions.find((transaction) => transaction.id === editId) : undefined;
+
+  const title = editingTransaction
+    ? editingTransaction.type === "income"
+      ? "収入を編集する"
+      : "支出を編集する"
+    : "支出・収入を記録する";
 
   return (
     <div className="px-6 pt-8">
-      <h1 className="text-lg font-bold">{editingExpense ? "支出を編集する" : "支出を記録する"}</h1>
-      <ExpenseForm expense={editingExpense} />
+      <h1 className="text-lg font-bold">{title}</h1>
+      <ExpenseForm expense={editingTransaction} />
     </div>
   );
 }

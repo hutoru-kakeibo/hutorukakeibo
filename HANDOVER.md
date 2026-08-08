@@ -38,6 +38,7 @@
 - 2人以上で共有する家計簿では、ホーム/取引履歴に「誰が記録したか」（👤 表示名）を表示（`expenses.created_by` は既存カラム。アプリ側で未使用だったのを `Expense.createdBy` として利用するように変更。DBスキーマ変更なし）
 - 「ホーム」タブの「最近の記録」にも日付/金額ソートを追加（直近5件を対象に並び替え。ソートUIは `SortButton`（[SortButton.tsx](src/components/expenses/SortButton.tsx)）として共通化し、取引履歴ページと共用）
 - 「ホーム」タブの「最近の記録」下部に「もっと見る →」リンクを設置し、統計タブの「取引履歴」（`/stats/transactions`）へ遷移できるように
+- 収入の記録・統計を追加。`expenses` テーブルに `type`（`'expense' | 'income'`）カラムを追加し、支出と同じテーブルで管理。「記録」タブは支出/収入のトグルで切り替え、収入カテゴリは固定5種（給与・ボーナス・お小遣い・副業・その他、カスタム化やドラッグ並べ替えなし）。「統計」タブも支出/収入トグルでカテゴリ内訳・日別グラフ・取引履歴（`/stats/transactions?type=income`）を切り替え表示。**予算・キャラクター判定・診断は支出のみを参照し、収入の影響を受けない**（`ExpensesContext` の `expenses` は常に type=expense のみを返す設計で担保）
 
 ---
 
@@ -283,7 +284,7 @@ AuthProvider            … Supabase の認証状態
 | `profiles` | ユーザープロフィール + `active_household_id`（表示中の家計簿） |
 | `households` | 家計簿。`name` / `color` / `monthly_budget` / `invite_code` / `owner_id`（ホスト） / `plan`(`free`\|`premium`) / `category_order`（カテゴリ表示順のjsonb配列） |
 | `household_members` | 所属関係（多対多）。**1人が複数の家計簿に所属できる** |
-| `expenses` | 支出。`category_id` は固定カテゴリの文字列IDまたはカスタムカテゴリのUUID（**CHECK制約なし**） |
+| `expenses` | 支出・収入の両方を格納（`type`: `'expense' \| 'income'`）。`category_id` は type ごとに別名前空間（支出=固定カテゴリの文字列ID/カスタムカテゴリのUUID、収入=`src/lib/expenses/incomeCategories.ts` の固定ID）。**CHECK制約なし** |
 | `custom_categories` | カスタムカテゴリ。作成は premium プランのみ（RLSで強制） |
 | `category_budgets` | カテゴリごとの任意予算。`(household_id, category_id)` でunique。**キャラクター判定には使わない**（診断の追加インサイトのみ） |
 
@@ -384,6 +385,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | 機能追加 | 表示名のユーザー自身での変更、2人以上の共有家計簿での記録者表示（ホーム/取引履歴） |
 | 機能追加 | 「ホーム」タブ「最近の記録」への日付/金額ソート追加 |
 | UI追加 | 「ホーム」タブ「最近の記録」に「もっと見る」リンクを追加し、取引履歴へ導線を設置 |
+| 機能追加 | 収入の記録・統計に対応（`expenses.type` 追加、「記録」「統計」タブに支出/収入トグルを追加。予算・キャラクター判定は支出のみ参照） |
 
 ---
 
