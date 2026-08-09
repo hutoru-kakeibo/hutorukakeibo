@@ -9,6 +9,7 @@ import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
 import { INCOME_CATEGORIES, resolveIncomeCategory } from "@/lib/expenses/incomeCategories";
 import { formatYen } from "@/lib/format";
+import { normalizeKana } from "@/lib/normalizeKana";
 
 type SortKey = "date" | "amount";
 
@@ -30,8 +31,14 @@ function TransactionsContent() {
     activeHousehold?.members.find((member) => member.userId === userId)?.displayName ?? "メンバー";
 
   const [categoryFilter, setCategoryFilter] = useState<string>(initialCategory ?? "all");
+  const [categorySearch, setCategorySearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  const searchQuery = normalizeKana(categorySearch.trim());
+  const matchesSearch = (label: string) => !searchQuery || normalizeKana(label).includes(searchQuery);
+  const visibleExpenseCategories = expenseCategories.filter((category) => matchesSearch(category.label));
+  const visibleIncomeCategories = INCOME_CATEGORIES.filter((category) => matchesSearch(category.label));
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -74,6 +81,14 @@ function TransactionsContent() {
         <h1 className="text-lg font-bold">取引履歴</h1>
       </div>
 
+      <input
+        type="text"
+        value={categorySearch}
+        onChange={(event) => setCategorySearch(event.target.value)}
+        placeholder="カテゴリを検索"
+        className="rounded-xl bg-surface px-3 py-2 text-sm shadow-sm outline-none"
+      />
+
       <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1">
         <button
           type="button"
@@ -84,7 +99,7 @@ function TransactionsContent() {
         >
           すべて
         </button>
-        {expenseCategories.map((category) => (
+        {visibleExpenseCategories.map((category) => (
           <button
             key={category.id}
             type="button"
@@ -96,7 +111,7 @@ function TransactionsContent() {
             {category.emoji} {category.label}
           </button>
         ))}
-        {INCOME_CATEGORIES.map((category) => (
+        {visibleIncomeCategories.map((category) => (
           <button
             key={category.id}
             type="button"
@@ -108,6 +123,9 @@ function TransactionsContent() {
             {category.emoji} {category.label}
           </button>
         ))}
+        {searchQuery && visibleExpenseCategories.length === 0 && visibleIncomeCategories.length === 0 && (
+          <p className="shrink-0 self-center text-xs text-ink-muted">一致するカテゴリがありません</p>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
