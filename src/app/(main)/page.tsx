@@ -12,6 +12,7 @@ import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
 import { computeCharacterStatus } from "@/lib/character/logic";
 import { resolveIncomeCategory } from "@/lib/expenses/incomeCategories";
+import { DEFAULT_HOUSEHOLD_COLOR } from "@/lib/household/colors";
 import { getMonthKey, sumExpensesForMonth } from "@/lib/expenses/utils";
 import { formatYen } from "@/lib/format";
 
@@ -39,6 +40,7 @@ export default function HomePage() {
   );
   const remaining = monthlyBudget - monthlySpent;
   const progressPercent = monthlyBudget > 0 ? Math.min(100, (monthlySpent / monthlyBudget) * 100) : 100;
+  const householdColor = activeHousehold?.color ?? DEFAULT_HOUSEHOLD_COLOR;
 
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -112,7 +114,8 @@ export default function HomePage() {
 
       <Link
         href="/input"
-        className="rounded-2xl bg-brand-500 py-3 text-center text-sm font-bold text-white shadow-sm transition-transform active:scale-[0.98]"
+        style={{ backgroundColor: householdColor }}
+        className="rounded-2xl py-3 text-center text-sm font-bold text-white shadow-sm transition-transform active:scale-[0.98]"
       >
         + 支出を記録する
       </Link>
@@ -129,12 +132,14 @@ export default function HomePage() {
                 active={sortKey === "date"}
                 direction={sortDirection}
                 onClick={() => handleSort("date")}
+                color={householdColor}
               />
               <SortButton
                 label="金額"
                 active={sortKey === "amount"}
                 direction={sortDirection}
                 onClick={() => handleSort("amount")}
+                color={householdColor}
               />
             </div>
           )}
@@ -159,9 +164,9 @@ export default function HomePage() {
                       <p className="text-sm font-medium">{category.label}</p>
                       <p className="text-xs text-ink-muted">
                         {transaction.date}
-                        {transaction.memo ? ` ・ ${transaction.memo}` : ""}
                         {showRecorder ? ` ・ 👤 ${resolveMemberName(transaction.createdBy)}` : ""}
                       </p>
+                      {transaction.memo && <p className="text-xs text-ink-muted">{transaction.memo}</p>}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

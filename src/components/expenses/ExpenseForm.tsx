@@ -21,17 +21,20 @@ import { useAllCategories } from "@/hooks/useAllCategories";
 import { CUSTOM_CATEGORY_EMOJIS, DEFAULT_CUSTOM_CATEGORY_EMOJI } from "@/lib/expenses/customCategoryEmojis";
 import { INCOME_CATEGORIES } from "@/lib/expenses/incomeCategories";
 import type { AnyCategory, Expense, TransactionType } from "@/lib/expenses/types";
+import { DEFAULT_HOUSEHOLD_COLOR } from "@/lib/household/colors";
 
 function SortableCategoryButton({
   category,
   active,
   onSelect,
   onRequestDelete,
+  color,
 }: {
   category: AnyCategory;
   active: boolean;
   onSelect: () => void;
   onRequestDelete: (() => void) | null;
+  color: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: category.id,
@@ -49,8 +52,9 @@ function SortableCategoryButton({
         {...attributes}
         {...listeners}
         aria-pressed={active}
+        style={active ? { backgroundColor: color } : undefined}
         className={`flex w-full flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium transition-colors ${
-          active ? "bg-brand-500 text-white" : "bg-surface text-ink-muted shadow-sm"
+          active ? "text-white" : "bg-surface text-ink-muted shadow-sm"
         } ${isDragging ? "opacity-70 shadow-lg" : ""}`}
       >
         <span aria-hidden className="text-lg">
@@ -91,6 +95,7 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
   const { addCustomCategory, removeCustomCategory } = useCustomCategories();
   const isEditing = Boolean(expense);
   const isPremium = activeHousehold?.plan === "premium";
+  const householdColor = activeHousehold?.color ?? DEFAULT_HOUSEHOLD_COLOR;
 
   const [type, setType] = useState<TransactionType>(expense?.type ?? "expense");
   const [amount, setAmount] = useState(expense ? String(expense.amount) : "");
@@ -264,6 +269,7 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
                       active={category.id === categoryId}
                       onSelect={() => setCategoryId(category.id)}
                       onRequestDelete={category.isCustom ? () => setDeletingCategoryId(category.id) : null}
+                      color={householdColor}
                     />
                   ))}
                 </SortableContext>
@@ -362,8 +368,9 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
                   type="button"
                   aria-pressed={active}
                   onClick={() => setCategoryId(category.id)}
+                  style={active ? { backgroundColor: householdColor } : undefined}
                   className={`flex w-full flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium transition-colors ${
-                    active ? "bg-brand-500 text-white" : "bg-surface text-ink-muted shadow-sm"
+                    active ? "text-white" : "bg-surface text-ink-muted shadow-sm"
                   }`}
                 >
                   <span aria-hidden className="text-lg">
@@ -409,7 +416,8 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
       <button
         type="submit"
         disabled={submitting}
-        className="rounded-2xl bg-brand-500 py-3 text-center text-sm font-bold text-white shadow-sm transition-transform active:scale-[0.98] disabled:opacity-50"
+        style={{ backgroundColor: householdColor }}
+        className="rounded-2xl py-3 text-center text-sm font-bold text-white shadow-sm transition-transform active:scale-[0.98] disabled:opacity-50"
       >
         {isEditing ? "更新する" : "記録する"}
       </button>

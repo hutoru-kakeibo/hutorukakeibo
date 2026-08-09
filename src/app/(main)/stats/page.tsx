@@ -12,6 +12,7 @@ import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
 import { diagnoseMonth } from "@/lib/character/diagnosis";
 import { INCOME_CATEGORIES } from "@/lib/expenses/incomeCategories";
+import { DEFAULT_HOUSEHOLD_COLOR } from "@/lib/household/colors";
 import {
   getMonthKey,
   groupExpensesByCategory,
@@ -22,15 +23,15 @@ import {
 } from "@/lib/expenses/utils";
 import { formatYen } from "@/lib/format";
 
-const INCOME_BAR_COLOR = "#38bdf8";
-
 function CategoryBreakdownSection({
   title,
   categoryTotals,
+  total,
   transactionsHref,
 }: {
   title: string;
   categoryTotals: CategoryTotal[];
+  total: number;
   transactionsHref: string;
 }) {
   const hasData = categoryTotals.length > 0;
@@ -44,7 +45,7 @@ function CategoryBreakdownSection({
       </div>
       {hasData ? (
         <>
-          <CategoryPieChart data={categoryTotals} />
+          <CategoryPieChart data={categoryTotals} total={total} />
           <ul className="mt-2 space-y-1.5">
             {categoryTotals.map((entry, index) => (
               <li key={entry.categoryId}>
@@ -108,6 +109,7 @@ function DailyBreakdownSection({
 export default function StatsPage() {
   const { activeHousehold } = useHousehold();
   const monthlyBudget = activeHousehold?.monthlyBudget ?? 0;
+  const householdColor = activeHousehold?.color ?? DEFAULT_HOUSEHOLD_COLOR;
   const { expenses, incomes } = useExpenses();
   const { categories } = useAllCategories();
   const { categoryBudgets } = useCategoryBudgets();
@@ -149,25 +151,28 @@ export default function StatsPage() {
       <CategoryBreakdownSection
         title="カテゴリ別の支出内訳"
         categoryTotals={expenseCategoryTotals}
+        total={monthlySpent}
         transactionsHref="/stats/transactions"
       />
       <DailyBreakdownSection
         title="日別の支出"
         dailyTotals={expenseDailyTotals}
         hasData={expenseCategoryTotals.length > 0}
+        color={householdColor}
         dailyAverage={expenseDailyAverage}
       />
 
       <CategoryBreakdownSection
         title="カテゴリ別の収入内訳"
         categoryTotals={incomeCategoryTotals}
+        total={monthlyIncome}
         transactionsHref="/stats/transactions"
       />
       <DailyBreakdownSection
         title="日別の収入"
         dailyTotals={incomeDailyTotals}
         hasData={incomeCategoryTotals.length > 0}
-        color={INCOME_BAR_COLOR}
+        color={householdColor}
         dailyAverage={incomeDailyAverage}
       />
     </div>

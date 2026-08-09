@@ -6,9 +6,9 @@ import { formatYen } from "@/lib/format";
 
 export const PIE_COLORS = ["#22a06b", "#4ade80", "#f59e0b", "#f97316", "#38bdf8", "#a78bfa"];
 
-export function CategoryPieChart({ data }: { data: CategoryTotal[] }) {
+export function CategoryPieChart({ data, total }: { data: CategoryTotal[]; total: number }) {
   return (
-    <div style={{ width: "100%", height: 200 }}>
+    <div className="relative" style={{ width: "100%", height: 200 }}>
       <ResponsiveContainer>
         <PieChart>
           <Pie data={data} dataKey="total" nameKey="label" innerRadius={48} outerRadius={80} paddingAngle={2}>
@@ -19,6 +19,10 @@ export function CategoryPieChart({ data }: { data: CategoryTotal[] }) {
           <Tooltip formatter={(value) => formatYen(Number(value))} />
         </PieChart>
       </ResponsiveContainer>
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[10px] text-ink-muted">合計</span>
+        <span className="text-sm font-bold">{formatYen(total)}</span>
+      </div>
     </div>
   );
 }

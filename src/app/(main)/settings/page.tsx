@@ -6,10 +6,12 @@ import { CategoryManageSection } from "@/components/expenses/CategoryManageSecti
 import { HouseholdManageCard } from "@/components/household/HouseholdManageCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
+import { DEFAULT_HOUSEHOLD_COLOR } from "@/lib/household/colors";
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { households, activeHousehold, loading, joinByInviteCode, updateMyDisplayName } = useHousehold();
+  const householdColor = activeHousehold?.color ?? DEFAULT_HOUSEHOLD_COLOR;
   const [joinCode, setJoinCode] = useState("");
   const [joinFeedback, setJoinFeedback] = useState<string | null>(null);
 
@@ -54,7 +56,8 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={() => void handleSaveDisplayName()}
-            className="shrink-0 rounded-xl bg-brand-500 px-3 py-2 text-xs font-bold text-white"
+            style={{ backgroundColor: householdColor }}
+            className="shrink-0 rounded-xl px-3 py-2 text-xs font-bold text-white"
           >
             保存
           </button>
@@ -115,7 +118,8 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={() => void handleJoin()}
-            className="rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white"
+            style={{ backgroundColor: householdColor }}
+            className="rounded-xl px-4 py-2 text-xs font-bold text-white"
           >
             参加
           </button>
