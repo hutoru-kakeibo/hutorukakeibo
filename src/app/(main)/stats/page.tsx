@@ -80,15 +80,22 @@ function DailyBreakdownSection({
   dailyTotals,
   hasData,
   color,
+  dailyAverage,
 }: {
   title: string;
   dailyTotals: DailyTotal[];
   hasData: boolean;
   color?: string;
+  dailyAverage: number;
 }) {
   return (
     <section className="rounded-2xl bg-surface p-5 shadow-sm">
-      <h2 className="text-sm font-bold text-ink-muted">{title}</h2>
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-sm font-bold text-ink-muted">{title}</h2>
+        {hasData && (
+          <span className="text-xs text-ink-muted">1日あたりの平均 {formatYen(Math.round(dailyAverage))}</span>
+        )}
+      </div>
       {hasData ? (
         <DailyBarChart data={dailyTotals} color={color} />
       ) : (
@@ -124,6 +131,11 @@ export default function StatsPage() {
   const expenseDailyTotals = useMemo(() => groupExpensesByDay(expenses, monthKey), [expenses, monthKey]);
   const incomeDailyTotals = useMemo(() => groupExpensesByDay(incomes, monthKey), [incomes, monthKey]);
 
+  // このアプリは当月のみを扱うため、経過日数は「今日の日付」でそのまま求められる
+  const elapsedDays = new Date().getDate();
+  const expenseDailyAverage = monthlySpent / elapsedDays;
+  const incomeDailyAverage = monthlyIncome / elapsedDays;
+
   return (
     <div className="flex flex-col gap-6 px-6 pt-8 pb-4">
       <header>
@@ -146,6 +158,7 @@ export default function StatsPage() {
         title="日別の支出"
         dailyTotals={expenseDailyTotals}
         hasData={expenseCategoryTotals.length > 0}
+        dailyAverage={expenseDailyAverage}
       />
 
       <CategoryBreakdownSection
@@ -158,6 +171,7 @@ export default function StatsPage() {
         dailyTotals={incomeDailyTotals}
         hasData={incomeCategoryTotals.length > 0}
         color={INCOME_BAR_COLOR}
+        dailyAverage={incomeDailyAverage}
       />
     </div>
   );
