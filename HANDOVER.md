@@ -270,13 +270,13 @@ AuthProvider            … Supabase の認証状態
 | 比率 | 段階 | 画像 |
 |---|---|---|
 | < 0.5 | スリム | `slim.png` |
-| < 0.8 | 順調 | 🙂（**画像未提供**） |
-| < 1.0 | ややふっくら | 😐（**画像未提供**） |
+| < 0.8 | 順調 | `slim.png`（流用） |
+| < 1.0 | ややふっくら | `round.png`（流用） |
 | < 1.3 | ぽっちゃり | `round.png` |
 | ≥ 1.3 | まるまる | `overweight.png` |
 
 しきい値は「100%到達前に気づけるよう 80% で警告する」という意図。
-画像は [CharacterAvatar.tsx](src/components/character/CharacterAvatar.tsx) の `ILLUSTRATED_STAGES` に登録し、**未登録の段階は絵文字に自動フォールバック**する。新しい画像が届いたら §4.7 の手順で透過処理し、この対応表に1行足すだけでよい。
+画像は [CharacterAvatar.tsx](src/components/character/CharacterAvatar.tsx) の `ILLUSTRATED_STAGES` に登録し、**未登録の段階は絵文字に自動フォールバック**する仕組みになっている。「順調」「ややふっくら」は専用イラストが未着手のため、隣接する段階の既存画像（`slim.png` / `round.png`）を暫定的に流用登録した。専用イラストが届いたら §4.7 の手順で透過処理し、この対応表を更新する。
 
 ---
 
@@ -397,13 +397,14 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | 機能追加 | 「統計」タブの日別セクションに「1日あたりの平均」を追加 |
 | デザイン調整 | ホームの挨拶文・シェアボタンのアイコン・統計の支出/収入サマリー行を削除、取引履歴を3行構成に変更 |
 | デザイン調整 | ホームの「最近の記録」を取引履歴と同じ3行構成に統一、統計の円グラフに合計金額を表示、家計簿の色を主要ボタン・選択状態・棒グラフに適用 |
+| 機能追加 | 「順調」「ややふっくら」段階に暫定でキャラクター画像を登録（隣接段階の `slim.png` / `round.png` を流用）、絵文字プレースホルダーを解消 |
 
 ---
 
 ## 10. 残タスク
 
 ### 優先度: 高
-- [ ] **キャラクター画像2種**（「順調」`fit` / 「ややふっくら」`chubby`）。届いたら §4.7 の手順で透過 → `ILLUSTRATED_STAGES` に登録
+- [ ] **「順調」「ややふっくら」の専用キャラクター画像**。現在は暫定で隣接段階の画像（`slim.png` / `round.png`）を流用登録している（§5.3, §4.7）。専用イラストが届いたら §4.7 の手順で透過 → `ILLUSTRATED_STAGES` を更新
 - [ ] **課金処理の本実装**。決済プロバイダ（Stripe等）を選定し、Webhook で `households.plan` を更新する。UI側の枠（[PaywallNotice.tsx](src/components/billing/PaywallNotice.tsx)）は用意済みで、現状は「準備中」の alert のみ
 
 ### 優先度: 中

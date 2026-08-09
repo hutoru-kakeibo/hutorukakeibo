@@ -2,8 +2,11 @@ import Image from "next/image";
 import { FACE_BY_STAGE, type CharacterStatus } from "@/lib/character/logic";
 
 // 正式なキャラクターアートが揃っている段階。無い段階は絵文字プレースホルダーで代用する。
+// fit（順調）は slim.png を、chubby（ややふっくら）は round.png を流用している。
 const ILLUSTRATED_STAGES: Partial<Record<CharacterStatus["stage"], string>> = {
   slim: "/characters/slim.png",
+  fit: "/characters/slim.png",
+  chubby: "/characters/round.png",
   round: "/characters/round.png",
   overweight: "/characters/overweight.png",
 };
