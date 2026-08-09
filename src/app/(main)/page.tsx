@@ -12,6 +12,7 @@ import { useExpenses } from "@/contexts/ExpensesContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
 import { computeCharacterStatus } from "@/lib/character/logic";
+import { resolveIncomeCategory } from "@/lib/expenses/incomeCategories";
 import { getMonthKey, sumExpensesForMonth } from "@/lib/expenses/utils";
 import { formatYen } from "@/lib/format";
 
@@ -20,8 +21,13 @@ type SortKey = "date" | "amount";
 export default function HomePage() {
   const { user } = useAuth();
   const { activeHousehold, loading: householdLoading } = useHousehold();
-  const { expenses, removeExpense } = useExpenses();
-  const { resolve } = useAllCategories();
+  const { expenses, transactions, removeExpense } = useExpenses();
+  const { categories, resolve: resolveExpenseCategory } = useAllCategories();
+
+  // カテゴリIDは支出/収入で名前空間が重ならないため、これで種別を判別できる
+  const isExpenseCategoryId = (id: string) => categories.some((category) => category.id === id);
+  const resolveCategory = (categoryId: string) =>
+    isExpenseCategoryId(categoryId) ? resolveExpenseCategory(categoryId) : resolveIncomeCategory(categoryId);
 
   const monthlyBudget = activeHousehold?.monthlyBudget ?? 0;
   const monthKey = getMonthKey();
@@ -54,16 +60,16 @@ export default function HomePage() {
     }
   };
 
-  const recentExpenses = useMemo(() => {
-    // 直近に記録された5件を対象に、選んだ基準で並び替える
-    const recent = [...expenses].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
+  const recentTransactions = useMemo(() => {
+    // 直近に記録された5件（支出・収入とも）を対象に、選んだ基準で並び替える
+    const recent = [...transactions].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
     const sorted = [...recent].sort((a, b) => {
       if (sortKey === "amount") return b.amount - a.amount;
       return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt);
     });
     if (sortDirection === "asc") sorted.reverse();
     return sorted;
-  }, [expenses, sortKey, sortDirection]);
+  }, [transactions, sortKey, sortDirection]);
 
   // 2人以上で共有している家計簿でのみ「誰が記録したか」を表示する
   const showRecorder = (activeHousehold?.members.length ?? 0) > 1;
@@ -125,7 +131,7 @@ export default function HomePage() {
       <section>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-ink-muted">最近の記録</h2>
-          {recentExpenses.length > 0 && (
+          {recentTransactions.length > 0 && (
             <div className="flex items-center gap-2">
               <SortButton
                 label="日付"
@@ -142,15 +148,16 @@ export default function HomePage() {
             </div>
           )}
         </div>
-        {recentExpenses.length === 0 ? (
+        {recentTransactions.length === 0 ? (
           <p className="mt-2 text-sm text-ink-muted">まだ記録がありません</p>
         ) : (
           <ul className="mt-2 space-y-2">
-            {recentExpenses.map((expense) => {
-              const category = resolve(expense.categoryId);
+            {recentTransactions.map((transaction) => {
+              const category = resolveCategory(transaction.categoryId);
+              const isIncome = transaction.type === "income";
               return (
                 <li
-                  key={expense.id}
+                  key={transaction.id}
                   className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 shadow-sm"
                 >
                   <div className="flex items-center gap-3">
@@ -160,17 +167,20 @@ export default function HomePage() {
                     <div>
                       <p className="text-sm font-medium">{category.label}</p>
                       <p className="text-xs text-ink-muted">
-                        {expense.date}
-                        {expense.memo ? ` ・ ${expense.memo}` : ""}
-                        {showRecorder ? ` ・ 👤 ${resolveMemberName(expense.createdBy)}` : ""}
+                        {transaction.date}
+                        {transaction.memo ? ` ・ ${transaction.memo}` : ""}
+                        {showRecorder ? ` ・ 👤 ${resolveMemberName(transaction.createdBy)}` : ""}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold">{formatYen(expense.amount)}</span>
+                    <span className={`text-sm font-bold ${isIncome ? "text-brand-600" : ""}`}>
+                      {isIncome ? "+" : ""}
+                      {formatYen(transaction.amount)}
+                    </span>
                     <button
                       type="button"
-                      onClick={() => void removeExpense(expense.id)}
+                      onClick={() => void removeExpense(transaction.id)}
                       aria-label="削除"
                       className="text-ink-muted"
                     >
@@ -182,7 +192,7 @@ export default function HomePage() {
             })}
           </ul>
         )}
-        {recentExpenses.length > 0 && (
+        {recentTransactions.length > 0 && (
           <Link
             href="/stats/transactions"
             className="mt-2 block rounded-xl py-2 text-center text-xs font-bold text-brand-600 active:bg-canvas"
