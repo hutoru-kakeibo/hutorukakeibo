@@ -7,7 +7,6 @@ import { CategoryBudgetProgressList } from "@/components/expenses/CategoryBudget
 import { SortButton, type SortDirection } from "@/components/expenses/SortButton";
 import { HouseholdSwitcher } from "@/components/household/HouseholdSwitcher";
 import { ShareButton } from "@/components/share/ShareButton";
-import { useAuth } from "@/contexts/AuthContext";
 import { useExpenses } from "@/contexts/ExpensesContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
@@ -19,7 +18,6 @@ import { formatYen } from "@/lib/format";
 type SortKey = "date" | "amount";
 
 export default function HomePage() {
-  const { user } = useAuth();
   const { activeHousehold, loading: householdLoading } = useHousehold();
   const { expenses, transactions, removeExpense } = useExpenses();
   const { categories, resolve: resolveExpenseCategory } = useAllCategories();
@@ -41,12 +39,6 @@ export default function HomePage() {
   );
   const remaining = monthlyBudget - monthlySpent;
   const progressPercent = monthlyBudget > 0 ? Math.min(100, (monthlySpent / monthlyBudget) * 100) : 100;
-
-  const myDisplayName =
-    activeHousehold?.members.find((member) => member.userId === user?.id)?.displayName ??
-    user?.user_metadata?.full_name ??
-    user?.email ??
-    "ゲスト";
 
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -87,7 +79,6 @@ export default function HomePage() {
   return (
     <div className="flex flex-col gap-6 px-6 pt-8">
       <header className="flex flex-col items-center gap-2 text-center">
-        <p className="text-xs text-ink-muted">{myDisplayName} さん、こんにちは</p>
         <HouseholdSwitcher />
       </header>
 

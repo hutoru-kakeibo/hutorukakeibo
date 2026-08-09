@@ -169,9 +169,9 @@ function TransactionsContent() {
                       <p className="text-sm font-medium">{category.label}</p>
                       <p className="text-xs text-ink-muted">
                         {transaction.date}
-                        {transaction.memo ? ` ・ ${transaction.memo}` : ""}
                         {showRecorder ? ` ・ 👤 ${resolveMemberName(transaction.createdBy)}` : ""}
                       </p>
+                      {transaction.memo && <p className="text-xs text-ink-muted">{transaction.memo}</p>}
                     </div>
                   </div>
                   <span className={`text-sm font-bold ${isIncome ? "text-brand-600" : ""}`}>

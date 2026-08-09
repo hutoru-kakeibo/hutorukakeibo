@@ -140,9 +140,6 @@ export default function StatsPage() {
     <div className="flex flex-col gap-6 px-6 pt-8 pb-4">
       <header>
         <h1 className="text-lg font-bold">統計・診断</h1>
-        <p className="text-xs text-ink-muted">
-          今月の支出: {formatYen(monthlySpent)} ・ 今月の収入: {formatYen(monthlyIncome)}
-        </p>
       </header>
 
       <DiagnosisCard diagnosis={diagnosis} />

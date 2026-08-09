@@ -55,7 +55,7 @@ export function ShareButton({ status, spent, budget, monthKey }: ShareButtonProp
         disabled={pending}
         className="w-full rounded-2xl border border-black/10 bg-surface py-3 text-center text-sm font-bold shadow-sm transition-transform active:scale-[0.98] disabled:opacity-50"
       >
-        📤 シェアする
+        シェアする
       </button>
       {feedback && <p className="break-all text-center text-xs text-ink-muted">{feedback}</p>}
     </div>
