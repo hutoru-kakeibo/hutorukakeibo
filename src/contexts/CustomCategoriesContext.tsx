@@ -11,20 +11,23 @@ import {
 } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { DEFAULT_CUSTOM_CATEGORY_EMOJI } from "@/lib/expenses/customCategoryEmojis";
+import type { TransactionType } from "@/lib/expenses/types";
 import { useHousehold } from "./HouseholdContext";
 
 export interface CustomCategory {
   id: string;
   label: string;
   emoji: string;
+  type: TransactionType;
 }
 
 type CreateResult = { ok: true } | { ok: false; message: string };
 
 interface CustomCategoriesContextValue {
-  customCategories: CustomCategory[];
+  customExpenseCategories: CustomCategory[];
+  customIncomeCategories: CustomCategory[];
   loading: boolean;
-  addCustomCategory: (label: string, emoji: string) => Promise<CreateResult>;
+  addCustomCategory: (type: TransactionType, label: string, emoji: string) => Promise<CreateResult>;
   removeCustomCategory: (id: string) => Promise<void>;
 }
 
@@ -53,12 +56,14 @@ export function CustomCategoriesProvider({ children }: { children: ReactNode }) 
       setLoading(true);
       const { data, error } = await supabase
         .from("custom_categories")
-        .select("id, label, emoji")
+        .select("id, label, emoji, type")
         .eq("household_id", activeHousehold.id)
         .order("created_at", { ascending: true });
       if (cancelled) return;
       if (error) console.error("[custom_categories] 一覧の取得に失敗しました", error);
-      setCustomCategories(data ?? []);
+      setCustomCategories(
+        (data ?? []).map((row) => ({ ...row, type: row.type === "income" ? "income" : "expense" })),
+      );
       setLoading(false);
     }
     run();
@@ -69,7 +74,7 @@ export function CustomCategoriesProvider({ children }: { children: ReactNode }) 
   }, [supabase, activeHousehold]);
 
   const addCustomCategory = useCallback(
-    async (label: string, emoji: string): Promise<CreateResult> => {
+    async (type: TransactionType, label: string, emoji: string): Promise<CreateResult> => {
       if (!activeHousehold) return { ok: false, message: "家計簿が選択されていません" };
       const trimmed = label.trim();
       if (!trimmed) return { ok: false, message: "カテゴリ名を入力してください" };
@@ -83,9 +88,10 @@ export function CustomCategoriesProvider({ children }: { children: ReactNode }) 
           household_id: activeHousehold.id,
           label: trimmed,
           emoji: emoji || DEFAULT_CUSTOM_CATEGORY_EMOJI,
+          type,
           created_by: userData.user.id,
         })
-        .select("id, label, emoji")
+        .select("id, label, emoji, type")
         .single();
 
       if (error) {
@@ -96,7 +102,12 @@ export function CustomCategoriesProvider({ children }: { children: ReactNode }) 
         console.error("[custom_categories] 作成に失敗しました", error);
         return { ok: false, message: "作成に失敗しました" };
       }
-      if (data) setCustomCategories((prev) => [...prev, data]);
+      if (data) {
+        setCustomCategories((prev) => [
+          ...prev,
+          { ...data, type: data.type === "income" ? "income" : "expense" },
+        ]);
+      }
       return { ok: true };
     },
     [supabase, activeHousehold],
@@ -114,9 +125,24 @@ export function CustomCategoriesProvider({ children }: { children: ReactNode }) 
     [supabase],
   );
 
+  const customExpenseCategories = useMemo(
+    () => customCategories.filter((category) => category.type === "expense"),
+    [customCategories],
+  );
+  const customIncomeCategories = useMemo(
+    () => customCategories.filter((category) => category.type === "income"),
+    [customCategories],
+  );
+
   const value = useMemo<CustomCategoriesContextValue>(
-    () => ({ customCategories, loading, addCustomCategory, removeCustomCategory }),
-    [customCategories, loading, addCustomCategory, removeCustomCategory],
+    () => ({
+      customExpenseCategories,
+      customIncomeCategories,
+      loading,
+      addCustomCategory,
+      removeCustomCategory,
+    }),
+    [customExpenseCategories, customIncomeCategories, loading, addCustomCategory, removeCustomCategory],
   );
 
   return <CustomCategoriesContext.Provider value={value}>{children}</CustomCategoriesContext.Provider>;

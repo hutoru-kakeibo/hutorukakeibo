@@ -25,6 +25,7 @@ export interface Database {
           owner_id: string;
           plan: string;
           category_order: string[];
+          income_category_order: string[];
           created_at: string;
         };
         Insert: {
@@ -35,6 +36,7 @@ export interface Database {
           owner_id: string;
           plan?: string;
           category_order?: string[];
+          income_category_order?: string[];
         };
         Update: {
           name?: string;
@@ -42,6 +44,7 @@ export interface Database {
           monthly_budget?: number;
           plan?: string;
           category_order?: string[];
+          income_category_order?: string[];
         };
         Relationships: [];
       };
@@ -87,6 +90,7 @@ export interface Database {
           household_id: string;
           label: string;
           emoji: string;
+          type: string;
           created_by: string;
           created_at: string;
         };
@@ -94,6 +98,7 @@ export interface Database {
           household_id: string;
           label: string;
           emoji?: string;
+          type?: string;
           created_by: string;
         };
         Update: Record<string, never>;

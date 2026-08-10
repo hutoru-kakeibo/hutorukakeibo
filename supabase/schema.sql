@@ -20,6 +20,9 @@ create table public.households (
   -- 「記録」タブのカテゴリ表示順（カテゴリIDの配列）。ドラッグ並べ替えで更新される。
   -- 未登録のカテゴリ（新しく追加されたもの等）はこの配列に含まれず、末尾に自然順で表示される。
   category_order jsonb not null default '[]'::jsonb,
+  -- 収入カテゴリの表示順。category_order とは別の配列で管理する
+  -- （カテゴリIDの名前空間は支出/収入で重ならないが、並べ替えの保存を独立させるため）
+  income_category_order jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -55,11 +58,13 @@ create table public.expenses (
 );
 
 -- custom_categories: プレミアムプランの household のみ作成できる、独自のカテゴリ
+-- type で支出用・収入用を区別する（expenses.type と同じ考え方）
 create table public.custom_categories (
   id uuid primary key default gen_random_uuid(),
   household_id uuid not null references public.households (id) on delete cascade,
   label text not null,
   emoji text not null default '🏷️',
+  type text not null default 'expense' check (type in ('expense', 'income')),
   created_by uuid not null references auth.users (id),
   created_at timestamptz not null default now()
 );

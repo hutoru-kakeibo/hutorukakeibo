@@ -10,8 +10,8 @@ import { ShareButton } from "@/components/share/ShareButton";
 import { useExpenses } from "@/contexts/ExpensesContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
+import { useAllIncomeCategories } from "@/hooks/useAllIncomeCategories";
 import { computeCharacterStatus } from "@/lib/character/logic";
-import { resolveIncomeCategory } from "@/lib/expenses/incomeCategories";
 import { DEFAULT_HOUSEHOLD_COLOR } from "@/lib/household/colors";
 import { getMonthKey, sumExpensesForMonth } from "@/lib/expenses/utils";
 import { formatYen } from "@/lib/format";
@@ -22,6 +22,7 @@ export default function HomePage() {
   const { activeHousehold, loading: householdLoading } = useHousehold();
   const { expenses, transactions, removeExpense } = useExpenses();
   const { categories, resolve: resolveExpenseCategory } = useAllCategories();
+  const { resolve: resolveIncomeCategory } = useAllIncomeCategories();
 
   // カテゴリIDは支出/収入で名前空間が重ならないため、これで種別を判別できる
   const isExpenseCategoryId = (id: string) => categories.some((category) => category.id === id);

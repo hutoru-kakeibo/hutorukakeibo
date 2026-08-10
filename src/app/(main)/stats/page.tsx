@@ -10,8 +10,8 @@ import { useCategoryBudgets } from "@/contexts/CategoryBudgetsContext";
 import { useExpenses } from "@/contexts/ExpensesContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
+import { useAllIncomeCategories } from "@/hooks/useAllIncomeCategories";
 import { diagnoseMonth } from "@/lib/character/diagnosis";
-import { INCOME_CATEGORIES } from "@/lib/expenses/incomeCategories";
 import { DEFAULT_HOUSEHOLD_COLOR } from "@/lib/household/colors";
 import {
   getMonthKey,
@@ -112,6 +112,7 @@ export default function StatsPage() {
   const householdColor = activeHousehold?.color ?? DEFAULT_HOUSEHOLD_COLOR;
   const { expenses, incomes } = useExpenses();
   const { categories } = useAllCategories();
+  const { categories: incomeCategories } = useAllIncomeCategories();
   const { categoryBudgets } = useCategoryBudgets();
   const monthKey = getMonthKey();
 
@@ -127,8 +128,8 @@ export default function StatsPage() {
     [expenses, monthKey, categories],
   );
   const incomeCategoryTotals = useMemo(
-    () => groupExpensesByCategory(incomes, monthKey, INCOME_CATEGORIES),
-    [incomes, monthKey],
+    () => groupExpensesByCategory(incomes, monthKey, incomeCategories),
+    [incomes, monthKey, incomeCategories],
   );
   const expenseDailyTotals = useMemo(() => groupExpensesByDay(expenses, monthKey), [expenses, monthKey]);
   const incomeDailyTotals = useMemo(() => groupExpensesByDay(incomes, monthKey), [incomes, monthKey]);

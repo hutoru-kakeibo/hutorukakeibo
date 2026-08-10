@@ -7,7 +7,7 @@ import { EXPENSE_CATEGORIES } from "@/lib/expenses/categories";
 
 export function CategoryManageSection() {
   const { activeHousehold } = useHousehold();
-  const { customCategories, removeCustomCategory } = useCustomCategories();
+  const { customExpenseCategories, removeCustomCategory } = useCustomCategories();
   const isPremium = activeHousehold?.plan === "premium";
 
   return (
@@ -33,11 +33,11 @@ export function CategoryManageSection() {
       </div>
 
       <p className="mt-4 text-[11px] text-ink-muted">独自カテゴリ（プレミアム限定）</p>
-      {customCategories.length === 0 ? (
+      {customExpenseCategories.length === 0 ? (
         <p className="mt-1 text-xs text-ink-muted">まだ追加されていません</p>
       ) : (
         <ul className="mt-1 space-y-1">
-          {customCategories.map((category) => (
+          {customExpenseCategories.map((category) => (
             <li key={category.id} className="flex items-center justify-between text-xs">
               <span>
                 {category.emoji} {category.label}

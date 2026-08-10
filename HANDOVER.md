@@ -38,12 +38,13 @@
 - 2人以上で共有する家計簿では、ホーム/取引履歴に「誰が記録したか」（👤 表示名）を表示（`expenses.created_by` は既存カラム。アプリ側で未使用だったのを `Expense.createdBy` として利用するように変更。DBスキーマ変更なし）
 - 「ホーム」タブの「最近の記録」にも日付/金額ソートを追加（直近5件を対象に並び替え。ソートUIは `SortButton`（[SortButton.tsx](src/components/expenses/SortButton.tsx)）として共通化し、取引履歴ページと共用）
 - 「ホーム」タブの「最近の記録」下部に「もっと見る →」リンクを設置し、統計タブの「取引履歴」（`/stats/transactions`）へ遷移できるように
-- 収入の記録・統計を追加。`expenses` テーブルに `type`（`'expense' | 'income'`）カラムを追加し、支出と同じテーブルで管理。「記録」タブは支出/収入のトグルで切り替え、収入カテゴリは固定5種（給与・ボーナス・お小遣い・副業・その他、カスタム化やドラッグ並べ替えなし）。「統計」タブは支出/収入を**トグルではなく両方同時に**縦に並べて表示（カテゴリ内訳・日別グラフをそれぞれ支出用・収入用の2セット）。「取引履歴」（`/stats/transactions`）も支出・収入を1つのリストに統合表示し、収入は緑字+「+」表記で区別。カテゴリIDは支出/収入で名前空間が重ならないため、`category` パラメータのみで種別を問わず絞り込める。**予算・キャラクター判定・診断は支出のみを参照し、収入の影響を受けない**（`ExpensesContext` の `expenses` は常に type=expense のみを返す設計で担保）
+- 収入の記録・統計を追加。`expenses` テーブルに `type`（`'expense' | 'income'`）カラムを追加し、支出と同じテーブルで管理。「記録」タブは支出/収入のトグルで切り替え、収入カテゴリは固定5種（給与・ボーナス・お小遣い・副業・その他）+ カスタムカテゴリ（後述）。「統計」タブは支出/収入を**トグルではなく両方同時に**縦に並べて表示（カテゴリ内訳・日別グラフをそれぞれ支出用・収入用の2セット）。「取引履歴」（`/stats/transactions`）も支出・収入を1つのリストに統合表示し、収入は緑字+「+」表記で区別。カテゴリIDは支出/収入で名前空間が重ならないため、`category` パラメータのみで種別を問わず絞り込める。**予算・キャラクター判定・診断は支出のみを参照し、収入の影響を受けない**（`ExpensesContext` の `expenses` は常に type=expense のみを返す設計で担保）
 - 「取引履歴」にカテゴリ名の部分一致検索を追加（ひらがな/カタカナは区別しない。`normalizeKana`（[normalizeKana.ts](src/lib/normalizeKana.ts)）で全角カタカナ→ひらがなに正規化してから比較。読み仮名検索（音読み等）ではなく文字列としての部分一致）
 - 「ホーム」タブの「最近の記録」も支出・収入を混在表示するように修正（`ExpensesContext` の `transactions`（全件）を使用。収入は緑字+「+」表記で区別。ソート・削除・記録者表示は支出/収入共通で動作）
 - 「統計」タブの「日別の支出」「日別の収入」に「1日あたりの平均」を追加（当月合計 ÷ 経過日数（`new Date().getDate()`）。このアプリは当月のみを扱うため、経過日数は今日の日付でそのまま求められる。記録が無い場合は非表示）
 - デザイン調整: 「ホーム」タブの挨拶文（"〇〇さん、こんにちは"）を削除、「シェアする」ボタンのアイコンを削除、「統計」タブの「今月の支出/今月の収入」サマリー行を削除、「取引履歴」の各項目を「見出し／日付・記録者／メモ」の3行構成に変更（メモが空の場合はメモ行を省略）
 - デザイン調整: 「ホーム」タブの「最近の記録」を「取引履歴」と同じ3行構成に統一。「統計」タブの各円グラフ中央に合計金額を表示（`CategoryPieChart` に `total` プロップを追加）。household の色（`households.color`）を主要な操作系UIに適用: ホームの「支出を記録する」ボタン／ホームのソートボタン（`SortButton` に `color` プロップを追加。取引履歴側は未指定のまま既定色）／「記録」タブの選択中カテゴリ（支出・収入とも）／「記録」タブの「記録する」ボタン／「統計」タブの日別支出・収入の棒グラフ／「設定」タブの「保存」「参加」ボタン。household が未確定の間は `DEFAULT_HOUSEHOLD_COLOR`（[colors.ts](src/lib/household/colors.ts)）にフォールバック
+- 収入カテゴリでも支出と同様にカスタムカテゴリの追加（プレミアム限定）・ドラッグ並べ替え・削除ができるように。`custom_categories` テーブルに `type` カラムを追加して支出/収入のカスタムカテゴリを同じテーブルで管理（`CustomCategoriesContext` は `customExpenseCategories` / `customIncomeCategories` を type で振り分けて公開）。並び順は `households.income_category_order`（新規カラム、`category_order` とは別配列）に保存。新設の `useAllIncomeCategories`（[useAllIncomeCategories.ts](src/hooks/useAllIncomeCategories.ts)）が `useAllCategories` の収入版として、固定カテゴリ・カスタムカテゴリ・並び順・`resolve` をまとめる。`ExpenseForm` はこれにより支出/収入で完全に同じカテゴリUI（ドラッグ並べ替え・追加・削除）を共用する実装に統一した
 
 ---
 
@@ -242,7 +243,7 @@ src/
 │   └── sw.ts                … Service Worker のソース
 ├── contexts/                … AuthContext → HouseholdContext → CustomCategoriesContext → ExpensesContext（この順に依存）
 ├── components/              … 機能別（auth / billing / character / expenses / household / nav / share / stats / pwa / providers）
-├── hooks/useAllCategories   … 固定カテゴリ + カスタムカテゴリの統合・解決
+├── hooks/useAllCategories(Income) … 固定カテゴリ + カスタムカテゴリの統合・解決（支出/収入それぞれ用）
 ├── lib/
 │   ├── character/           … logic.ts（5段階判定）, diagnosis.ts（S〜Dランク診断）
 │   ├── expenses/            … categories, types, utils（集計）
@@ -290,7 +291,7 @@ AuthProvider            … Supabase の認証状態
 | `households` | 家計簿。`name` / `color` / `monthly_budget` / `invite_code` / `owner_id`（ホスト） / `plan`(`free`\|`premium`) / `category_order`（カテゴリ表示順のjsonb配列） |
 | `household_members` | 所属関係（多対多）。**1人が複数の家計簿に所属できる** |
 | `expenses` | 支出・収入の両方を格納（`type`: `'expense' \| 'income'`）。`category_id` は type ごとに別名前空間（支出=固定カテゴリの文字列ID/カスタムカテゴリのUUID、収入=`src/lib/expenses/incomeCategories.ts` の固定ID）。**CHECK制約なし** |
-| `custom_categories` | カスタムカテゴリ。作成は premium プランのみ（RLSで強制） |
+| `custom_categories` | カスタムカテゴリ。`type`（`'expense' \| 'income'`）で支出用/収入用を区別。作成は premium プランのみ（RLSで強制） |
 | `category_budgets` | カテゴリごとの任意予算。`(household_id, category_id)` でunique。**キャラクター判定には使わない**（診断の追加インサイトのみ） |
 
 ### 6.2 SQL 関数（すべて `SECURITY DEFINER`）
@@ -391,6 +392,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | 機能追加 | 「ホーム」タブ「最近の記録」への日付/金額ソート追加 |
 | UI追加 | 「ホーム」タブ「最近の記録」に「もっと見る」リンクを追加し、取引履歴へ導線を設置 |
 | 機能追加 | 収入の記録・統計に対応（`expenses.type` 追加、「記録」「統計」タブに支出/収入トグルを追加。予算・キャラクター判定は支出のみ参照） |
+| 機能追加 | 収入カテゴリでもカスタムカテゴリの追加・ドラッグ並べ替え・削除を可能に（`custom_categories.type` / `households.income_category_order` 追加、`useAllIncomeCategories` 新設） |
 | 修正 | 「統計」タブの支出/収入トグルを廃止し、両方を同じ画面に並べて表示。「取引履歴」も支出・収入を1つのリストに統合 |
 | 機能追加 | 「取引履歴」にカテゴリ名の部分一致検索を追加（ひらがな/カタカナ区別なし） |
 | 修正 | 「ホーム」タブ「最近の記録」に収入も混在表示するように修正 |

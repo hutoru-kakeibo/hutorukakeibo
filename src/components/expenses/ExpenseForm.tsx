@@ -18,8 +18,8 @@ import { useCustomCategories } from "@/contexts/CustomCategoriesContext";
 import { useExpenses } from "@/contexts/ExpensesContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
+import { useAllIncomeCategories } from "@/hooks/useAllIncomeCategories";
 import { CUSTOM_CATEGORY_EMOJIS, DEFAULT_CUSTOM_CATEGORY_EMOJI } from "@/lib/expenses/customCategoryEmojis";
-import { INCOME_CATEGORIES } from "@/lib/expenses/incomeCategories";
 import type { AnyCategory, Expense, TransactionType } from "@/lib/expenses/types";
 import { DEFAULT_HOUSEHOLD_COLOR } from "@/lib/household/colors";
 
@@ -90,18 +90,20 @@ interface ExpenseFormProps {
 export function ExpenseForm({ expense }: ExpenseFormProps) {
   const router = useRouter();
   const { addExpense, addIncome, updateExpense, removeExpense } = useExpenses();
-  const { activeHousehold, setCategoryOrder } = useHousehold();
-  const { categories } = useAllCategories();
+  const { activeHousehold, setCategoryOrder, setIncomeCategoryOrder } = useHousehold();
+  const { categories: expenseCategories } = useAllCategories();
+  const { categories: incomeCategories } = useAllIncomeCategories();
   const { addCustomCategory, removeCustomCategory } = useCustomCategories();
   const isEditing = Boolean(expense);
   const isPremium = activeHousehold?.plan === "premium";
   const householdColor = activeHousehold?.color ?? DEFAULT_HOUSEHOLD_COLOR;
 
   const [type, setType] = useState<TransactionType>(expense?.type ?? "expense");
+  const activeCategories = type === "expense" ? expenseCategories : incomeCategories;
+  const setActiveCategoryOrder = type === "expense" ? setCategoryOrder : setIncomeCategoryOrder;
+
   const [amount, setAmount] = useState(expense ? String(expense.amount) : "");
-  const [categoryId, setCategoryId] = useState(
-    expense?.categoryId ?? (type === "income" ? INCOME_CATEGORIES[0]?.id : categories[0]?.id) ?? "",
-  );
+  const [categoryId, setCategoryId] = useState(expense?.categoryId ?? activeCategories[0]?.id ?? "");
   const [date, setDate] = useState(expense?.date ?? todayDateString);
   const [memo, setMemo] = useState(expense?.memo ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -110,7 +112,8 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
   const handleTypeChange = (nextType: TransactionType) => {
     if (nextType === type) return;
     setType(nextType);
-    setCategoryId((nextType === "income" ? INCOME_CATEGORIES[0]?.id : categories[0]?.id) ?? "");
+    const nextCategories = nextType === "expense" ? expenseCategories : incomeCategories;
+    setCategoryId(nextCategories[0]?.id ?? "");
   };
 
   const [addingCategory, setAddingCategory] = useState(false);
@@ -122,12 +125,12 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
 
   // ドラッグ中に並び順の保存(Supabase往復)を待たず即座に画面へ反映するためのローカルコピー。
-  // categories が変わったら追従させる（Reactの「レンダー中にstateを調整する」パターン。useEffectは使わない）
-  const [prevCategories, setPrevCategories] = useState(categories);
-  const [orderedCategories, setOrderedCategories] = useState(categories);
-  if (categories !== prevCategories) {
-    setPrevCategories(categories);
-    setOrderedCategories(categories);
+  // activeCategories が変わったら追従させる（Reactの「レンダー中にstateを調整する」パターン。useEffectは使わない）
+  const [prevCategories, setPrevCategories] = useState(activeCategories);
+  const [orderedCategories, setOrderedCategories] = useState(activeCategories);
+  if (activeCategories !== prevCategories) {
+    setPrevCategories(activeCategories);
+    setOrderedCategories(activeCategories);
   }
 
   // ドラッグ対象には touch-action: none を設定しているため、タップ開始点のブラウザ標準スクロールは
@@ -147,7 +150,7 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
 
   const handleCategoryDragEnd = (event: DragEndEvent) => {
     if (!event.over) return;
-    void setCategoryOrder(orderedCategories.map((category) => category.id));
+    void setActiveCategoryOrder(orderedCategories.map((category) => category.id));
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -185,7 +188,7 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
 
   const handleAddCategory = async () => {
     setCategoryError(null);
-    const result = await addCustomCategory(newCategoryLabel, newCategoryEmoji);
+    const result = await addCustomCategory(type, newCategoryLabel, newCategoryEmoji);
     if (!result.ok) {
       setCategoryError(result.message);
       return;
@@ -197,11 +200,11 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
 
   const handleConfirmDeleteCategory = async (id: string) => {
     await removeCustomCategory(id);
-    if (categoryId === id) setCategoryId(categories.find((category) => category.id !== id)?.id ?? "");
+    if (categoryId === id) setCategoryId(activeCategories.find((category) => category.id !== id)?.id ?? "");
     setDeletingCategoryId(null);
   };
 
-  const deletingCategory = categories.find((category) => category.id === deletingCategoryId);
+  const deletingCategory = activeCategories.find((category) => category.id === deletingCategoryId);
 
   return (
     <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 flex flex-col gap-5">
@@ -248,138 +251,108 @@ export function ExpenseForm({ expense }: ExpenseFormProps) {
 
       <div>
         <span className="text-xs font-bold text-ink-muted">カテゴリ</span>
-        {type === "expense" ? (
-          <>
-            <p className="mt-1 text-[11px] text-ink-muted">ドラッグすると並び順を変更できます</p>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              <DndContext
-                sensors={dragSensors}
-                collisionDetection={closestCenter}
-                onDragOver={handleCategoryDragOver}
-                onDragEnd={handleCategoryDragEnd}
-              >
-                <SortableContext
-                  items={orderedCategories.map((category) => category.id)}
-                  strategy={rectSortingStrategy}
-                >
-                  {orderedCategories.map((category) => (
-                    <SortableCategoryButton
-                      key={category.id}
-                      category={category}
-                      active={category.id === categoryId}
-                      onSelect={() => setCategoryId(category.id)}
-                      onRequestDelete={category.isCustom ? () => setDeletingCategoryId(category.id) : null}
-                      color={householdColor}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
-              <button
-                type="button"
-                onClick={() => setAddingCategory((v) => !v)}
-                className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-black/15 py-3 text-xs font-medium text-ink-muted"
-              >
-                <span aria-hidden className="text-lg">
-                  ＋
-                </span>
-                追加
-              </button>
-            </div>
-
-            {deletingCategory && (
-              <div className="mt-3 flex items-center gap-2 rounded-2xl bg-surface p-4 shadow-sm">
-                <p className="flex-1 text-xs text-ink-muted">
-                  「{deletingCategory.label}」を削除しますか？
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void handleConfirmDeleteCategory(deletingCategory.id)}
-                  className="rounded-xl bg-status-over px-3 py-1.5 text-xs font-bold text-white"
-                >
-                  削除する
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeletingCategoryId(null)}
-                  className="rounded-xl border border-black/10 px-3 py-1.5 text-xs text-ink-muted"
-                >
-                  やめる
-                </button>
-              </div>
-            )}
-
-            {addingCategory && (
-              <div className="mt-3 rounded-2xl bg-surface p-4 shadow-sm">
-                {isPremium ? (
-                  <div className="flex flex-col gap-3">
-                    <input
-                      autoFocus
-                      value={newCategoryLabel}
-                      onChange={(event) => setNewCategoryLabel(event.target.value)}
-                      placeholder="例）ペット費"
-                      className="w-full rounded-xl bg-canvas px-3 py-2 text-sm outline-none"
-                    />
-                    <div className="flex flex-wrap gap-1.5">
-                      {CUSTOM_CATEGORY_EMOJIS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => setNewCategoryEmoji(emoji)}
-                          aria-pressed={newCategoryEmoji === emoji}
-                          className={`flex size-8 items-center justify-center rounded-full text-base ${
-                            newCategoryEmoji === emoji ? "bg-brand-100" : "bg-canvas"
-                          }`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                    {categoryError && <p className="text-xs text-status-over">{categoryError}</p>}
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void handleAddCategory()}
-                        className="flex-1 rounded-xl bg-brand-500 py-2 text-xs font-bold text-white"
-                      >
-                        追加する
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAddingCategory(false)}
-                        className="rounded-xl border border-black/10 px-3 py-2 text-xs text-ink-muted"
-                      >
-                        やめる
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <PaywallNotice message="独自のカテゴリを追加できるのはプレミアムプラン限定です" />
-                )}
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            {INCOME_CATEGORIES.map((category) => {
-              const active = category.id === categoryId;
-              return (
-                <button
+        <p className="mt-1 text-[11px] text-ink-muted">ドラッグすると並び順を変更できます</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          <DndContext
+            sensors={dragSensors}
+            collisionDetection={closestCenter}
+            onDragOver={handleCategoryDragOver}
+            onDragEnd={handleCategoryDragEnd}
+          >
+            <SortableContext items={orderedCategories.map((category) => category.id)} strategy={rectSortingStrategy}>
+              {orderedCategories.map((category) => (
+                <SortableCategoryButton
                   key={category.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setCategoryId(category.id)}
-                  style={active ? { backgroundColor: householdColor } : undefined}
-                  className={`flex w-full flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium transition-colors ${
-                    active ? "text-white" : "bg-surface text-ink-muted shadow-sm"
-                  }`}
-                >
-                  <span aria-hidden className="text-lg">
-                    {category.emoji}
-                  </span>
-                  {category.label}
-                </button>
-              );
-            })}
+                  category={category}
+                  active={category.id === categoryId}
+                  onSelect={() => setCategoryId(category.id)}
+                  onRequestDelete={category.isCustom ? () => setDeletingCategoryId(category.id) : null}
+                  color={householdColor}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+          <button
+            type="button"
+            onClick={() => setAddingCategory((v) => !v)}
+            className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-black/15 py-3 text-xs font-medium text-ink-muted"
+          >
+            <span aria-hidden className="text-lg">
+              ＋
+            </span>
+            追加
+          </button>
+        </div>
+
+        {deletingCategory && (
+          <div className="mt-3 flex items-center gap-2 rounded-2xl bg-surface p-4 shadow-sm">
+            <p className="flex-1 text-xs text-ink-muted">
+              「{deletingCategory.label}」を削除しますか？
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleConfirmDeleteCategory(deletingCategory.id)}
+              className="rounded-xl bg-status-over px-3 py-1.5 text-xs font-bold text-white"
+            >
+              削除する
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeletingCategoryId(null)}
+              className="rounded-xl border border-black/10 px-3 py-1.5 text-xs text-ink-muted"
+            >
+              やめる
+            </button>
+          </div>
+        )}
+
+        {addingCategory && (
+          <div className="mt-3 rounded-2xl bg-surface p-4 shadow-sm">
+            {isPremium ? (
+              <div className="flex flex-col gap-3">
+                <input
+                  autoFocus
+                  value={newCategoryLabel}
+                  onChange={(event) => setNewCategoryLabel(event.target.value)}
+                  placeholder="例）ペット費"
+                  className="w-full rounded-xl bg-canvas px-3 py-2 text-sm outline-none"
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {CUSTOM_CATEGORY_EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setNewCategoryEmoji(emoji)}
+                      aria-pressed={newCategoryEmoji === emoji}
+                      className={`flex size-8 items-center justify-center rounded-full text-base ${
+                        newCategoryEmoji === emoji ? "bg-brand-100" : "bg-canvas"
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                {categoryError && <p className="text-xs text-status-over">{categoryError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleAddCategory()}
+                    className="flex-1 rounded-xl bg-brand-500 py-2 text-xs font-bold text-white"
+                  >
+                    追加する
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddingCategory(false)}
+                    className="rounded-xl border border-black/10 px-3 py-2 text-xs text-ink-muted"
+                  >
+                    やめる
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <PaywallNotice message="独自のカテゴリを追加できるのはプレミアムプラン限定です" />
+            )}
           </div>
         )}
       </div>

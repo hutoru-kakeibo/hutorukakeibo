@@ -33,6 +33,7 @@ export interface Household {
   plan: HouseholdPlan;
   members: HouseholdMember[];
   categoryOrder: string[];
+  incomeCategoryOrder: string[];
 }
 
 type ActionResult = { ok: true } | { ok: false; message: string };
@@ -47,6 +48,7 @@ interface HouseholdContextValue {
   setHouseholdColor: (id: string, color: string) => Promise<void>;
   setMonthlyBudget: (value: number) => Promise<void>;
   setCategoryOrder: (order: string[]) => Promise<void>;
+  setIncomeCategoryOrder: (order: string[]) => Promise<void>;
   updateMyDisplayName: (name: string) => Promise<ActionResult>;
   joinByInviteCode: (code: string) => Promise<ActionResult>;
   removeMember: (householdId: string, userId: string) => Promise<ActionResult>;
@@ -96,7 +98,7 @@ async function fetchMyHouseholds(
 
   const { data: householdRows, error: householdsError } = await supabase
     .from("households")
-    .select("id, name, color, monthly_budget, invite_code, owner_id, plan, category_order")
+    .select("id, name, color, monthly_budget, invite_code, owner_id, plan, category_order, income_category_order")
     .in("id", householdIds);
 
   if (householdsError) {
@@ -133,6 +135,7 @@ async function fetchMyHouseholds(
     ownerId: row.owner_id,
     plan: row.plan === "premium" ? "premium" : "free",
     categoryOrder: Array.isArray(row.category_order) ? row.category_order : [],
+    incomeCategoryOrder: Array.isArray(row.income_category_order) ? row.income_category_order : [],
     members: (allMemberRows ?? [])
       .filter((member) => member.household_id === row.id)
       .map((member) => {
@@ -296,6 +299,24 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [supabase, activeHousehold],
   );
 
+  const setIncomeCategoryOrder = useCallback(
+    async (order: string[]) => {
+      if (!activeHousehold) return;
+      const { error } = await supabase
+        .from("households")
+        .update({ income_category_order: order })
+        .eq("id", activeHousehold.id);
+      if (error) {
+        console.error("[household] 収入カテゴリ順の更新に失敗しました", error);
+        return;
+      }
+      setHouseholds((prev) =>
+        prev.map((h) => (h.id === activeHousehold.id ? { ...h, incomeCategoryOrder: order } : h)),
+      );
+    },
+    [supabase, activeHousehold],
+  );
+
   const updateMyDisplayName = useCallback(
     async (name: string): Promise<ActionResult> => {
       const trimmed = name.trim();
@@ -393,6 +414,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       setHouseholdColor,
       setMonthlyBudget,
       setCategoryOrder,
+      setIncomeCategoryOrder,
       updateMyDisplayName,
       joinByInviteCode,
       removeMember,
@@ -409,6 +431,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       setHouseholdColor,
       setMonthlyBudget,
       setCategoryOrder,
+      setIncomeCategoryOrder,
       updateMyDisplayName,
       joinByInviteCode,
       removeMember,

@@ -7,7 +7,7 @@ import { SortButton, type SortDirection } from "@/components/expenses/SortButton
 import { useExpenses } from "@/contexts/ExpensesContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useAllCategories } from "@/hooks/useAllCategories";
-import { INCOME_CATEGORIES, resolveIncomeCategory } from "@/lib/expenses/incomeCategories";
+import { useAllIncomeCategories } from "@/hooks/useAllIncomeCategories";
 import { formatYen } from "@/lib/format";
 import { normalizeKana } from "@/lib/normalizeKana";
 
@@ -18,6 +18,7 @@ function TransactionsContent() {
   const initialCategory = searchParams.get("category");
   const { transactions } = useExpenses();
   const { categories: expenseCategories, resolve: resolveExpenseCategory } = useAllCategories();
+  const { categories: incomeCategories, resolve: resolveIncomeCategory } = useAllIncomeCategories();
   const { activeHousehold } = useHousehold();
 
   // カテゴリIDは支出/収入で名前空間が重ならないため、これで種別を判別できる
@@ -38,7 +39,7 @@ function TransactionsContent() {
   const searchQuery = normalizeKana(categorySearch.trim());
   const matchesSearch = (label: string) => !searchQuery || normalizeKana(label).includes(searchQuery);
   const visibleExpenseCategories = expenseCategories.filter((category) => matchesSearch(category.label));
-  const visibleIncomeCategories = INCOME_CATEGORIES.filter((category) => matchesSearch(category.label));
+  const visibleIncomeCategories = incomeCategories.filter((category) => matchesSearch(category.label));
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {

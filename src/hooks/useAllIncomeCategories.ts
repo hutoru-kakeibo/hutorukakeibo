@@ -3,21 +3,21 @@
 import { useMemo } from "react";
 import { useCustomCategories } from "@/contexts/CustomCategoriesContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
-import { EXPENSE_CATEGORIES } from "@/lib/expenses/categories";
+import { INCOME_CATEGORIES } from "@/lib/expenses/incomeCategories";
 import type { AnyCategory } from "@/lib/expenses/types";
 
 const UNKNOWN_CATEGORY: AnyCategory = { id: "", label: "不明なカテゴリ", emoji: "❓", isCustom: false };
 
-/** 固定カテゴリとカスタムカテゴリを合わせて扱うためのフック */
-export function useAllCategories() {
-  const { customExpenseCategories } = useCustomCategories();
+/** 固定の収入カテゴリとカスタム収入カテゴリを合わせて扱うためのフック（useAllCategories の収入版） */
+export function useAllIncomeCategories() {
+  const { customIncomeCategories } = useCustomCategories();
   const { activeHousehold } = useHousehold();
 
   const categories = useMemo<AnyCategory[]>(() => {
-    const categoryOrder = activeHousehold?.categoryOrder ?? [];
+    const categoryOrder = activeHousehold?.incomeCategoryOrder ?? [];
     const combined = [
-      ...EXPENSE_CATEGORIES.map((category) => ({ ...category, isCustom: false })),
-      ...customExpenseCategories.map((category) => ({ ...category, isCustom: true })),
+      ...INCOME_CATEGORIES.map((category) => ({ ...category, isCustom: false })),
+      ...customIncomeCategories.map((category) => ({ ...category, isCustom: true })),
     ];
     if (categoryOrder.length === 0) return combined;
 
@@ -27,7 +27,7 @@ export function useAllCategories() {
       const rankB = rank.get(b.id) ?? categoryOrder.length;
       return rankA - rankB;
     });
-  }, [customExpenseCategories, activeHousehold?.categoryOrder]);
+  }, [customIncomeCategories, activeHousehold?.incomeCategoryOrder]);
 
   const byId = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories]);
 
