@@ -34,6 +34,12 @@ export interface Household {
   members: HouseholdMember[];
   categoryOrder: string[];
   incomeCategoryOrder: string[];
+  /** Stripe のサブスク状態（active / trialing / past_due / canceled など）。未契約なら null */
+  subscriptionStatus: string | null;
+  /** 現在の課金期間の終了日時（ISO 8601）。解約予約中でもこの日までは利用できる */
+  currentPeriodEnd: string | null;
+  /** 課金情報が存在するか（カスタマーポータルを開けるか）の判定に使う */
+  hasStripeCustomer: boolean;
 }
 
 type ActionResult = { ok: true } | { ok: false; message: string };
@@ -98,7 +104,9 @@ async function fetchMyHouseholds(
 
   const { data: householdRows, error: householdsError } = await supabase
     .from("households")
-    .select("id, name, color, monthly_budget, invite_code, owner_id, plan, category_order, income_category_order")
+    .select(
+      "id, name, color, monthly_budget, invite_code, owner_id, plan, category_order, income_category_order, stripe_customer_id, subscription_status, current_period_end",
+    )
     .in("id", householdIds);
 
   if (householdsError) {
@@ -136,6 +144,9 @@ async function fetchMyHouseholds(
     plan: row.plan === "premium" ? "premium" : "free",
     categoryOrder: Array.isArray(row.category_order) ? row.category_order : [],
     incomeCategoryOrder: Array.isArray(row.income_category_order) ? row.income_category_order : [],
+    subscriptionStatus: row.subscription_status,
+    currentPeriodEnd: row.current_period_end,
+    hasStripeCustomer: Boolean(row.stripe_customer_id),
     members: (allMemberRows ?? [])
       .filter((member) => member.household_id === row.id)
       .map((member) => {

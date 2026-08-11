@@ -1,14 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { PlanSection } from "@/components/billing/PlanSection";
 import { CategoryManageSection } from "@/components/expenses/CategoryManageSection";
 import { HouseholdManageCard } from "@/components/household/HouseholdManageCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { DEFAULT_HOUSEHOLD_COLOR } from "@/lib/household/colors";
 
-export default function SettingsPage() {
+/** Stripe から戻ってきたときの ?billing= に応じた案内 */
+function BillingReturnNotice() {
+  const billing = useSearchParams().get("billing");
+  if (billing !== "success" && billing !== "cancelled") return null;
+
+  return billing === "success" ? (
+    <p className="rounded-2xl bg-brand-100 px-4 py-3 text-xs text-brand-700">
+      お手続きありがとうございます。プランへの反映に少し時間がかかることがあります。切り替わらない場合は、少し待ってから画面を開き直してください。
+    </p>
+  ) : (
+    <p className="rounded-2xl bg-canvas px-4 py-3 text-xs text-ink-muted">
+      お手続きは取り消されました。プランは変更されていません。
+    </p>
+  );
+}
+
+function SettingsContent() {
   const { user, logout } = useAuth();
   const { households, activeHousehold, loading, joinByInviteCode, updateMyDisplayName } = useHousehold();
   const householdColor = activeHousehold?.color ?? DEFAULT_HOUSEHOLD_COLOR;
@@ -41,6 +59,8 @@ export default function SettingsPage() {
     <div className="flex flex-col gap-6 px-6 pt-8 pb-4">
       <h1 className="text-lg font-bold">設定</h1>
 
+      <BillingReturnNotice />
+
       <section className="rounded-2xl bg-surface p-5 shadow-sm">
         <label htmlFor="displayName" className="text-xs font-bold text-ink-muted">
           表示名
@@ -72,6 +92,8 @@ export default function SettingsPage() {
           ログアウト
         </button>
       </section>
+
+      <PlanSection />
 
       <Link
         href="/settings/budget"
@@ -130,5 +152,13 @@ export default function SettingsPage() {
         </p>
       </section>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SettingsContent />
+    </Suspense>
   );
 }

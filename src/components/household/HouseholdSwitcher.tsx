@@ -12,10 +12,8 @@ export function HouseholdSwitcher() {
   const [newColor, setNewColor] = useState(DEFAULT_HOUSEHOLD_COLOR);
   const [error, setError] = useState<string | null>(null);
 
-  if (!activeHousehold) return null;
-
   const handleSwitch = (id: string) => {
-    if (id !== activeHousehold.id) void switchHousehold(id);
+    if (id !== activeHousehold?.id) void switchHousehold(id);
     setOpen(false);
   };
 
@@ -31,6 +29,52 @@ export function HouseholdSwitcher() {
     setCreating(false);
     setOpen(false);
   };
+
+  const colorPicker = (
+    <div className="flex gap-1.5">
+      {HOUSEHOLD_COLORS.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-label={option.label}
+          onClick={() => setNewColor(option.value)}
+          className="size-7 shrink-0 rounded-full"
+          style={{
+            backgroundColor: option.value,
+            outline: newColor === option.value ? "2px solid #1f2937" : "none",
+            outlineOffset: 2,
+          }}
+        />
+      ))}
+    </div>
+  );
+
+  // まだどの家計簿にも所属していない（新規アカウント等）場合は、作成フォームを直接出す
+  if (!activeHousehold) {
+    return (
+      <div className="w-full rounded-2xl bg-surface p-4 text-left shadow-sm">
+        <p className="mb-2 text-xs font-bold text-ink-muted">はじめに家計簿を作成してください</p>
+        <div className="flex flex-col gap-2">
+          <input
+            autoFocus
+            value={newName}
+            onChange={(event) => setNewName(event.target.value)}
+            placeholder="例）わが家の家計簿"
+            className="w-full rounded-xl bg-canvas px-3 py-2 text-sm outline-none"
+          />
+          {colorPicker}
+          {error && <p className="text-xs text-status-over">{error}</p>}
+          <button
+            type="button"
+            onClick={() => void handleCreate()}
+            className="rounded-xl bg-brand-500 py-2 text-xs font-bold text-white"
+          >
+            作成する
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full">

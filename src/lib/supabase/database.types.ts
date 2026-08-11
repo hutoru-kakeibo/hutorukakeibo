@@ -24,6 +24,10 @@ export interface Database {
           invite_code: string;
           owner_id: string;
           plan: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          subscription_status: string | null;
+          current_period_end: string | null;
           category_order: string[];
           income_category_order: string[];
           created_at: string;
@@ -43,6 +47,10 @@ export interface Database {
           color?: string;
           monthly_budget?: number;
           plan?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          subscription_status?: string | null;
+          current_period_end?: string | null;
           category_order?: string[];
           income_category_order?: string[];
         };

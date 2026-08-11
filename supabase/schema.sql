@@ -15,8 +15,15 @@ create table public.households (
   monthly_budget integer not null default 30000 check (monthly_budget >= 0),
   invite_code text not null unique,
   owner_id uuid not null references auth.users (id),
-  -- サブスク課金の前段階。実際の決済処理は未実装で、この列は手動で切り替えて運用する。
+  -- サブスク課金のプラン。Stripe Webhook（service role）だけが更新できる（後述のトリガーで保護）
   plan text not null default 'free' check (plan in ('free', 'premium')),
+  -- Stripe の識別子と契約状態。いずれも Webhook が更新する
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  -- Stripe のサブスク状態をそのまま保持（active / trialing / past_due / canceled など）
+  subscription_status text,
+  -- 現在の課金期間の終了日時。解約予約中でもこの日までは利用できる
+  current_period_end timestamptz,
   -- 「記録」タブのカテゴリ表示順（カテゴリIDの配列）。ドラッグ並べ替えで更新される。
   -- 未登録のカテゴリ（新しく追加されたもの等）はこの配列に含まれず、末尾に自然順で表示される。
   category_order jsonb not null default '[]'::jsonb,
@@ -25,6 +32,10 @@ create table public.households (
   income_category_order jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
+
+create unique index households_stripe_customer_idx
+  on public.households (stripe_customer_id)
+  where stripe_customer_id is not null;
 
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
@@ -310,6 +321,43 @@ grant execute on function public.delete_household(uuid) to authenticated;
 grant execute on function public.join_household_by_invite_code(text) to authenticated;
 
 -- ============================================================
+-- 3e. 課金関連カラムの保護
+--
+-- households の更新はメンバー全員に許可しているため、そのままだと無料ユーザーが
+-- anon キーで plan を 'premium' に書き換えられてしまう。トリガーでクライアントからの
+-- 変更を無効化する。Stripe Webhook は service role キーで接続する（DBロールが
+-- service_role になる）ため、この保護を通過して plan を更新できる。
+-- ============================================================
+
+create or replace function public.protect_household_billing_columns()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- Stripe Webhook（service role）からの更新はそのまま通す
+  -- 注意: Supabase はコネクションプーリングを使うため current_user は JWT のロールを
+  -- 反映しない。必ず auth.role()（request.jwt.claim.role を読む）で判定すること。
+  if auth.role() = 'service_role' then
+    return new;
+  end if;
+
+  -- それ以外（アプリのクライアント）からの更新では課金関連カラムを元の値に戻す
+  new.plan := old.plan;
+  new.stripe_customer_id := old.stripe_customer_id;
+  new.stripe_subscription_id := old.stripe_subscription_id;
+  new.subscription_status := old.subscription_status;
+  new.current_period_end := old.current_period_end;
+  return new;
+end;
+$$;
+
+create trigger protect_household_billing_columns
+  before update on public.households
+  for each row execute function public.protect_household_billing_columns();
+
+-- ============================================================
 -- 4. Row Level Security
 -- ============================================================
 
@@ -366,6 +414,8 @@ create policy "users can update own profile" on public.profiles
 create policy "members can view their household" on public.households
   for select using (public.is_household_member(id));
 
+-- 更新自体はメンバー全員に許可するが、課金関連カラム（plan / stripe_*）だけは
+-- protect_household_billing_columns トリガーがクライアントからの変更を無効化する
 create policy "members can update their household" on public.households
   for update using (public.is_household_member(id));
 

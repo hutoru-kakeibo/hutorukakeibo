@@ -35,6 +35,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|manifest\\.webmanifest|icon-.*\\.png|apple-touch-icon\\.png|characters/).*)",
+    // Stripe Webhook は Cookie を持たないため、セッション更新の対象から外す
+    "/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|manifest\\.webmanifest|icon-.*\\.png|apple-touch-icon\\.png|characters/|api/billing/webhook).*)",
   ],
 };

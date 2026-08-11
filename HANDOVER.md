@@ -29,7 +29,7 @@
 - 複数家計簿の作成・切り替え・色分け
 - 招待コードによる家族/パートナー共有（Realtime同期）、ホストによるメンバー管理・家計簿削除
 - SNS共有（Web Share API + Canvas生成画像）、閲覧専用スナップショットリンク
-- カスタムカテゴリ（プレミアムプラン限定 / **課金処理自体は未実装**）
+- カスタムカテゴリ（プレミアムプラン限定）
 - カテゴリ別予算（全体予算とは別に任意設定。キャラクター判定は全体予算のみ参照、診断へは超過額を反映。ホーム/統計に進捗バーで可視化）
 - PWA（オフラインキャッシュ・ホーム画面インストール）
 - 予算管理のネスト画面（設定タブ → 「予算管理」→「家計簿全体の予算」「カテゴリ別の予算」。ルートは `/settings/budget`, `/settings/budget/overall`, `/settings/budget/categories`）
@@ -45,6 +45,13 @@
 - デザイン調整: 「ホーム」タブの挨拶文（"〇〇さん、こんにちは"）を削除、「シェアする」ボタンのアイコンを削除、「統計」タブの「今月の支出/今月の収入」サマリー行を削除、「取引履歴」の各項目を「見出し／日付・記録者／メモ」の3行構成に変更（メモが空の場合はメモ行を省略）
 - デザイン調整: 「ホーム」タブの「最近の記録」を「取引履歴」と同じ3行構成に統一。「統計」タブの各円グラフ中央に合計金額を表示（`CategoryPieChart` に `total` プロップを追加）。household の色（`households.color`）を主要な操作系UIに適用: ホームの「支出を記録する」ボタン／ホームのソートボタン（`SortButton` に `color` プロップを追加。取引履歴側は未指定のまま既定色）／「記録」タブの選択中カテゴリ（支出・収入とも）／「記録」タブの「記録する」ボタン／「統計」タブの日別支出・収入の棒グラフ／「設定」タブの「保存」「参加」ボタン。household が未確定の間は `DEFAULT_HOUSEHOLD_COLOR`（[colors.ts](src/lib/household/colors.ts)）にフォールバック
 - 収入カテゴリでも支出と同様にカスタムカテゴリの追加（プレミアム限定）・ドラッグ並べ替え・削除ができるように。`custom_categories` テーブルに `type` カラムを追加して支出/収入のカスタムカテゴリを同じテーブルで管理（`CustomCategoriesContext` は `customExpenseCategories` / `customIncomeCategories` を type で振り分けて公開）。並び順は `households.income_category_order`（新規カラム、`category_order` とは別配列）に保存。新設の `useAllIncomeCategories`（[useAllIncomeCategories.ts](src/hooks/useAllIncomeCategories.ts)）が `useAllCategories` の収入版として、固定カテゴリ・カスタムカテゴリ・並び順・`resolve` をまとめる。`ExpenseForm` はこれにより支出/収入で完全に同じカテゴリUI（ドラッグ並べ替え・追加・削除）を共用する実装に統一した
+- **課金の本実装（Stripe）**。プレミアムプランは月額170円、household単位（ホストが課金するとメンバー全員がプレミアム機能を使える）。
+  - 「設定」タブに [PlanSection.tsx](src/components/billing/PlanSection.tsx) を新設（現在のプラン表示・アップグレード導線・「プランを管理する」導線）。[PaywallNotice.tsx](src/components/billing/PaywallNotice.tsx)（カテゴリ管理画面などプレミアム限定機能の案内）もアップグレードボタンを持つ実装に更新
+  - API Route: [checkout](src/app/api/billing/checkout/route.ts)（Stripe Checkout セッション作成）/ [portal](src/app/api/billing/portal/route.ts)（Stripe カスタマーポータルセッション作成）/ [webhook](src/app/api/billing/webhook/route.ts)（署名検証 → `households.plan`/`stripe_*` カラムを更新）。いずれもホスト（`households.owner_id`）のみ実行可
+  - `households` に `stripe_customer_id` / `stripe_subscription_id` / `subscription_status` / `current_period_end` を追加（`supabase/add-stripe-billing.sql`）
+  - **課金カラムの保護トリガー**（`protect_household_billing_columns`）: 一般クライアントからの `households` UPDATE では `plan`/`stripe_*` を元の値に戻し、Stripe Webhook（service role接続）からの更新のみ通す。**判定ロジックに重大なバグがあり `fix-billing-trigger-service-role-check.sql` で修正済み。詳細は §4.9**
+  - ローカル動作確認は Stripe CLI（`stripe listen --forward-to localhost:3000/api/billing/webhook`）でWebhookをフォワードして実施。**本番（Vercel）側の環境変数設定とStripe側の本番Webhookエンドポイント登録はまだ未実施**（§10 残タスク参照）
+  - 現状は Stripe **テストモード**（`sk_test_...` / テストカード `4242 4242 4242 4242` で決済確認済み）。実際に課金を開始する際は本番（ライブ）モードのキーに切り替える必要がある
 
 ---
 
@@ -91,9 +98,23 @@ Vercel                 … ホスティング（GitHub連携で自動デプロ�
 NEXT_PUBLIC_SUPABASE_URL=https://cwxiurfqflcxypzldnjh.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=（Supabaseダッシュボード → Project Settings → API Keys の anon public）
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# 課金（Stripe）関連。テンプレートは .env.local.example 参照
+SUPABASE_SERVICE_ROLE_KEY=（Supabase → Project Settings → API Keys → service_role。Webhookがplanを更新するのに必須）
+STRIPE_SECRET_KEY=sk_test_...（Stripe → 開発者 → APIキー）
+STRIPE_PRICE_ID=price_...（Stripe → 商品カタログ → プレミアムプランのPrice ID）
+STRIPE_WEBHOOK_SECRET=whsec_...（ローカルは `stripe listen` の出力、本番はStripeダッシュボードのWebhookエンドポイント設定画面）
 ```
 
-Vercel 側にも同じ2つ（`NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`）が設定済み。
+Vercel 側には現状 `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` の2つのみ設定済み。**課金関連の4つ（`SUPABASE_SERVICE_ROLE_KEY` / `STRIPE_SECRET_KEY` / `STRIPE_PRICE_ID` / `STRIPE_WEBHOOK_SECRET`）と `NEXT_PUBLIC_SITE_URL` は本番未設定**（§10 残タスク参照）。
+
+### ローカルでのStripe Webhook検証
+
+Stripe CLI（`C:\家計簿アプリ開発\tools\stripe-cli\stripe.exe`。winget不可のためGitHub Releasesから直接ダウンロードして導入）で以下を実行し、ローカルの `npm run start` にWebhookをフォワードする。表示される `whsec_...` を `.env.local` の `STRIPE_WEBHOOK_SECRET` に設定すること（実行のたびに変わりうる）。
+
+```bash
+stripe listen --forward-to localhost:3000/api/billing/webhook
+```
 
 ### 3.3 コマンド
 
@@ -210,7 +231,30 @@ useEffect(() => {
 
 > `Read` ツールの画像プレビューが古いキャッシュを返すことがある（黒背景に見える等）。ファイル自体が壊れているか確認するには、Canvas API で実ピクセル値（RGBA）を直接読むこと。
 
-### 4.8 その他
+### 4.9 Supabase の service_role 判定に `current_user` を使ってはいけない
+
+課金カラム保護トリガー（`protect_household_billing_columns`、§6.1参照）を最初に実装した際、`if current_user = 'service_role' then ... end if;` で判定していた。
+**症状が非常に厄介**: Stripe Webhookは正常に届き署名検証も通り、Supabaseへの `UPDATE` も200で成功するのに、`households.plan` が**silentに元の値（free）へ戻ってしまう**。エラーは一切出ない。
+
+**原因**: Supabaseはコネクションプーリング（PgBouncer等）を使うため、`service_role` キーで接続しても Postgres の `current_user` は実際のJWTロールを反映しない（プーラー内部の共有ロールのまま）。RLSやトリガーで「このリクエストは service_role か」を判定したいときは、**`current_user` ではなく `auth.role()`**（`request.jwt.claim.role` を読むSupabase標準ヘルパー）を使うこと。
+
+```sql
+-- ✗ 動かない（常にfalse扱いになり、service_roleからの更新も巻き戻される）
+if current_user = 'service_role' then ...
+
+-- ✓ 正しい
+if auth.role() = 'service_role' then ...
+```
+
+修正パッチ: `supabase/fix-billing-trigger-service-role-check.sql`。**同種の「service_role なら通す」トリガー/ポリシーを今後書くときは必ず `auth.role()` を使うこと。**
+
+### 4.10 家計簿を1つも持たないアカウントはUIの導線が詰む
+
+`HouseholdSwitcher.tsx` は `if (!activeHousehold) return null;` としていたため、**所属householdが0件のアカウントでは「新しい家計簿を作る」ボタン自体が画面に出ない**（設定タブの「プラン」セクションや家計簿管理欄も同様に何も表示されない）。通常は新規登録時のトリガー（`handle_new_user`）が自動でhouseholdを1つ作るため表面化しにくいが、そのトリガー導入前に作成された古いアカウント等では発生しうる。
+
+**解決策**: `activeHousehold` が無い場合は最初から「家計簿を作成するフォーム」を表示するようにした（[HouseholdSwitcher.tsx](src/components/household/HouseholdSwitcher.tsx)）。課金機能のローカル検証中に発見・修正。
+
+### 4.11 その他
 
 | 事象 | 対処 |
 |---|---|
@@ -288,7 +332,7 @@ AuthProvider            … Supabase の認証状態
 | テーブル | 役割 |
 |---|---|
 | `profiles` | ユーザープロフィール + `active_household_id`（表示中の家計簿） |
-| `households` | 家計簿。`name` / `color` / `monthly_budget` / `invite_code` / `owner_id`（ホスト） / `plan`(`free`\|`premium`) / `category_order`（カテゴリ表示順のjsonb配列） |
+| `households` | 家計簿。`name` / `color` / `monthly_budget` / `invite_code` / `owner_id`（ホスト） / `plan`(`free`\|`premium`) / `category_order`（カテゴリ表示順のjsonb配列） / `income_category_order`（収入版） / `stripe_customer_id` / `stripe_subscription_id` / `subscription_status` / `current_period_end`（課金関連4カラム。**クライアントからの直接更新はトリガーで無効化され、Stripe Webhookのservice role接続からのみ更新できる**。§4.9） |
 | `household_members` | 所属関係（多対多）。**1人が複数の家計簿に所属できる** |
 | `expenses` | 支出・収入の両方を格納（`type`: `'expense' \| 'income'`）。`category_id` は type ごとに別名前空間（支出=固定カテゴリの文字列ID/カスタムカテゴリのUUID、収入=`src/lib/expenses/incomeCategories.ts` の固定ID）。**CHECK制約なし** |
 | `custom_categories` | カスタムカテゴリ。`type`（`'expense' \| 'income'`）で支出用/収入用を区別。作成は premium プランのみ（RLSで強制） |
@@ -317,14 +361,18 @@ AuthProvider            … Supabase の認証状態
 > **スキーマを変更したら、必ず差分パッチと `schema.sql` の両方を更新すること。**
 > あわせて [src/lib/supabase/database.types.ts](src/lib/supabase/database.types.ts)（手書きの型定義）も更新する。
 
-### 6.4 プランの切り替え（課金未実装のため手動）
+### 6.4 プランの切り替え
 
-```sql
--- household の一覧とIDを確認
-select id, name, plan from households;
+通常は Stripe Checkout → Webhook（[route.ts](src/app/api/billing/webhook/route.ts)）が自動で `households.plan` を更新する。
 
--- プレミアムに昇格
-update households set plan = 'premium' where id = '対象のID';
+**手動で切り替えたい場合の注意**: `protect_household_billing_columns` トリガー（§4.9）は `auth.role() = 'service_role'` で判定しているため、**SQL Editor からの `UPDATE` は `postgres` ロール実行になり `auth.role()` がserviceロールを返さず、書き込みが巻き戻される可能性が高い**（未検証。挙動が怪しければまずこれを疑う）。確実に効かせたいときは REST API を service_role キーで直接叩く:
+
+```bash
+curl -X PATCH "https://cwxiurfqflcxypzldnjh.supabase.co/rest/v1/households?id=eq.対象のID" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"plan":"premium"}'
 ```
 
 ---
@@ -337,6 +385,7 @@ update households set plan = 'premium' where id = '対象のID';
 | **Vercel** | https://vercel.com | GitHub連携。`main` への push で自動デプロイ |
 | **GitHub** | https://github.com/hutoru-kakeibo/hutorukakeibo | |
 | **Google Cloud Console** | https://console.cloud.google.com | OAuth クライアント（アプリ名「太る家計簿」） |
+| **Stripe** | https://dashboard.stripe.com | プレミアムプラン（月額170円）の課金。現在は**テストモード**。商品名「太る家計簿プレミアム」。本番稼働時はライブモードのAPIキー・Price ID・Webhookエンドポイントに切り替えが必要（§10） |
 
 ### 認証まわりの設定箇所（変更時は3箇所すべて確認）
 
@@ -400,6 +449,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | デザイン調整 | ホームの挨拶文・シェアボタンのアイコン・統計の支出/収入サマリー行を削除、取引履歴を3行構成に変更 |
 | デザイン調整 | ホームの「最近の記録」を取引履歴と同じ3行構成に統一、統計の円グラフに合計金額を表示、家計簿の色を主要ボタン・選択状態・棒グラフに適用 |
 | 機能追加 | 「順調」「ややふっくら」段階に暫定でキャラクター画像を登録（隣接段階の `slim.png` / `round.png` を流用）、絵文字プレースホルダーを解消 |
+| 機能追加 | 課金の本実装（Stripe、月額170円、household単位）。Checkout/カスタマーポータル/Webhookを実装し、Stripeテストモード・ローカル環境（`stripe listen`）で決済 → プレミアム反映 → 解約導線までE2Eで検証済み。検証中に2件のバグを発見・修正: ①課金カラム保護トリガーの `current_user` 判定が機能しておらず決済してもplanが更新されない（§4.9）、②householdを1件も持たないアカウントで家計簿作成の導線が出ない（§4.10）。本番（Vercel環境変数・Stripe本番Webhook）は未設定（§10） |
 
 ---
 
@@ -407,7 +457,11 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 
 ### 優先度: 高
 - [ ] **「順調」「ややふっくら」の専用キャラクター画像**。現在は暫定で隣接段階の画像（`slim.png` / `round.png`）を流用登録している（§5.3, §4.7）。専用イラストが届いたら §4.7 の手順で透過 → `ILLUSTRATED_STAGES` を更新
-- [ ] **課金処理の本実装**。決済プロバイダ（Stripe等）を選定し、Webhook で `households.plan` を更新する。UI側の枠（[PaywallNotice.tsx](src/components/billing/PaywallNotice.tsx)）は用意済みで、現状は「準備中」の alert のみ
+- [ ] **課金の本番設定が未完了**。コード・DBスキーマは実装済み・ローカルでE2E検証済みだが、以下が残っている:
+  - [ ] Vercel の環境変数に `SUPABASE_SERVICE_ROLE_KEY` / `STRIPE_SECRET_KEY` / `STRIPE_PRICE_ID` / `STRIPE_WEBHOOK_SECRET` / `NEXT_PUBLIC_SITE_URL`（本番URL）を追加
+  - [ ] Stripeダッシュボードで本番用のWebhookエンドポイント（`https://hutorukakeibo.vercel.app/api/billing/webhook`）を登録し、そのWebhook署名シークレットを上記 `STRIPE_WEBHOOK_SECRET` に設定（ローカルの `stripe listen` のシークレットとは別物）
+  - [ ] 実際に課金を開始する場合は、Stripeを**テストモードからライブモードに切り替え**（APIキー・Price IDも本番用に差し替え）
+  - [ ] 本番環境で実際のカードによる決済 → plan反映 → 解約までの一通りの動作確認
 
 ### 優先度: 中
 - [ ] 月をまたいだ過去データの閲覧（現状は当月のみ）
@@ -417,7 +471,6 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 ### 技術的負債
 - [ ] `database.types.ts` が手書き。Supabase CLI を導入して `supabase gen types typescript` に置き換えたい
 - [ ] 自動テストが皆無。すべて手動＋ブラウザ検証
-- [ ] `PaywallNotice` の `alert()` は §4.5 の理由で iOS PWA では動かない可能性が高い（課金実装時にアプリ内UIへ置き換えること）
 
 ---
 
