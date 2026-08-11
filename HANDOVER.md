@@ -50,8 +50,8 @@
   - API Route: [checkout](src/app/api/billing/checkout/route.ts)（Stripe Checkout セッション作成）/ [portal](src/app/api/billing/portal/route.ts)（Stripe カスタマーポータルセッション作成）/ [webhook](src/app/api/billing/webhook/route.ts)（署名検証 → `households.plan`/`stripe_*` カラムを更新）。いずれもホスト（`households.owner_id`）のみ実行可
   - `households` に `stripe_customer_id` / `stripe_subscription_id` / `subscription_status` / `current_period_end` を追加（`supabase/add-stripe-billing.sql`）
   - **課金カラムの保護トリガー**（`protect_household_billing_columns`）: 一般クライアントからの `households` UPDATE では `plan`/`stripe_*` を元の値に戻し、Stripe Webhook（service role接続）からの更新のみ通す。**判定ロジックに重大なバグがあり `fix-billing-trigger-service-role-check.sql` で修正済み。詳細は §4.9**
-  - ローカル動作確認は Stripe CLI（`stripe listen --forward-to localhost:3000/api/billing/webhook`）でWebhookをフォワードして実施。**本番（Vercel）側の環境変数設定とStripe側の本番Webhookエンドポイント登録はまだ未実施**（§10 残タスク参照）
-  - 現状は Stripe **テストモード**（`sk_test_...` / テストカード `4242 4242 4242 4242` で決済確認済み）。実際に課金を開始する際は本番（ライブ）モードのキーに切り替える必要がある
+  - ローカル動作確認は Stripe CLI（`stripe listen --forward-to localhost:3000/api/billing/webhook`）でWebhookをフォワードして実施。本番はVercelに環境変数を設定し、Stripe側に本番用Webhookエンドポイントを登録した上で、実際のブラウザ操作で決済→plan反映→カスタマーポータルまで動作確認済み
+  - 現状は Stripe **テストモード**（`sk_test_...` / テストカード `4242 4242 4242 4242` で決済確認済み）。実際に課金を開始する際は本番（ライブ）モードのキーに切り替える必要がある（§10）
 
 ---
 
@@ -449,7 +449,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | デザイン調整 | ホームの挨拶文・シェアボタンのアイコン・統計の支出/収入サマリー行を削除、取引履歴を3行構成に変更 |
 | デザイン調整 | ホームの「最近の記録」を取引履歴と同じ3行構成に統一、統計の円グラフに合計金額を表示、家計簿の色を主要ボタン・選択状態・棒グラフに適用 |
 | 機能追加 | 「順調」「ややふっくら」段階に暫定でキャラクター画像を登録（隣接段階の `slim.png` / `round.png` を流用）、絵文字プレースホルダーを解消 |
-| 機能追加 | 課金の本実装（Stripe、月額170円、household単位）。Checkout/カスタマーポータル/Webhookを実装し、Stripeテストモード・ローカル環境（`stripe listen`）で決済 → プレミアム反映 → 解約導線までE2Eで検証済み。検証中に2件のバグを発見・修正: ①課金カラム保護トリガーの `current_user` 判定が機能しておらず決済してもplanが更新されない（§4.9）、②householdを1件も持たないアカウントで家計簿作成の導線が出ない（§4.10）。本番（Vercel環境変数・Stripe本番Webhook）は未設定（§10） |
+| 機能追加 | 課金の本実装（Stripe、月額170円、household単位）。Checkout/カスタマーポータル/Webhookを実装し、Stripeテストモードでローカル・本番の両方で決済→プレミアム反映→解約導線までE2Eで検証済み。検証中に2件のバグを発見・修正: ①課金カラム保護トリガーの `current_user` 判定が機能しておらず決済してもplanが更新されない（§4.9）、②householdを1件も持たないアカウントで家計簿作成の導線が出ない（§4.10）。Vercel環境変数とStripe本番Webhookエンドポイントも設定済み。実際に課金を始めるにはライブモードへの切り替えが必要（§10） |
 
 ---
 
@@ -457,11 +457,9 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 
 ### 優先度: 高
 - [ ] **「順調」「ややふっくら」の専用キャラクター画像**。現在は暫定で隣接段階の画像（`slim.png` / `round.png`）を流用登録している（§5.3, §4.7）。専用イラストが届いたら §4.7 の手順で透過 → `ILLUSTRATED_STAGES` を更新
-- [ ] **課金の本番設定が未完了**。コード・DBスキーマは実装済み・ローカルでE2E検証済みだが、以下が残っている:
-  - [ ] Vercel の環境変数に `SUPABASE_SERVICE_ROLE_KEY` / `STRIPE_SECRET_KEY` / `STRIPE_PRICE_ID` / `STRIPE_WEBHOOK_SECRET` / `NEXT_PUBLIC_SITE_URL`（本番URL）を追加
-  - [ ] Stripeダッシュボードで本番用のWebhookエンドポイント（`https://hutorukakeibo.vercel.app/api/billing/webhook`）を登録し、そのWebhook署名シークレットを上記 `STRIPE_WEBHOOK_SECRET` に設定（ローカルの `stripe listen` のシークレットとは別物）
-  - [ ] 実際に課金を開始する場合は、Stripeを**テストモードからライブモードに切り替え**（APIキー・Price IDも本番用に差し替え）
-  - [ ] 本番環境で実際のカードによる決済 → plan反映 → 解約までの一通りの動作確認
+- [ ] **課金を実際に開始する場合はStripeをテストモードからライブモードに切り替え**（APIキー・Price ID・Webhookエンドポイントをすべて本番用に作り直し、Vercelの環境変数も差し替える）。それまではテストモードのまま運用され、実際の課金は発生しない
+  - 本番のVercel環境変数（`SUPABASE_SERVICE_ROLE_KEY` / `STRIPE_SECRET_KEY` / `STRIPE_PRICE_ID` / `STRIPE_WEBHOOK_SECRET` / `NEXT_PUBLIC_SITE_URL`）は設定済み。Stripe本番Webhookエンドポイント（`https://hutorukakeibo.vercel.app/api/billing/webhook`、対象イベント: `checkout.session.completed` / `customer.subscription.created` / `customer.subscription.updated` / `customer.subscription.deleted`）も登録済み
+  - 本番環境で実際にテストカード決済 → Webhook経由でplanがpremiumへ反映 → カスタマーポータルが開くところまで動作確認済み（2026-08-11）
 
 ### 優先度: 中
 - [ ] 月をまたいだ過去データの閲覧（現状は当月のみ）
