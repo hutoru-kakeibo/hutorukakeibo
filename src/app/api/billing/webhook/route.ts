@@ -47,6 +47,16 @@ async function syncSubscription(subscription: Stripe.Subscription) {
   }
 }
 
+// 一時的な診断用。Vercel側のSTRIPE_WEBHOOK_SECRETが意図した値になっているか
+// 末尾6文字だけを比較するために追加。原因特定後に削除すること。
+export function GET() {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+  return NextResponse.json({
+    webhookSecretTail: secret.slice(-6),
+    webhookSecretLength: secret.length,
+  });
+}
+
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
   if (!signature) {
