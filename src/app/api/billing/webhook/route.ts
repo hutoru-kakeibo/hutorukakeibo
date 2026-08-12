@@ -71,7 +71,11 @@ export async function POST(request: Request) {
   } catch (error) {
     // 署名検証の失敗は「正規の Stripe からのリクエストではない」ことを意味する
     console.error("[billing] Webhook の署名検証に失敗しました", error);
-    return NextResponse.json({ message: "署名が不正です" }, { status: 400 });
+    // 一時的な診断用: 原因特定のためエラーメッセージを返す。特定後に削除すること。
+    return NextResponse.json(
+      { message: "署名が不正です", debug: error instanceof Error ? error.message : String(error) },
+      { status: 400 },
+    );
   }
 
   try {
