@@ -47,16 +47,6 @@ async function syncSubscription(subscription: Stripe.Subscription) {
   }
 }
 
-// 一時的な診断用。Vercel側のSTRIPE_WEBHOOK_SECRETが意図した値になっているか
-// 末尾6文字だけを比較するために追加。原因特定後に削除すること。
-export function GET() {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
-  return NextResponse.json({
-    webhookSecretTail: secret.slice(-6),
-    webhookSecretLength: secret.length,
-  });
-}
-
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
   if (!signature) {
@@ -71,11 +61,7 @@ export async function POST(request: Request) {
   } catch (error) {
     // 署名検証の失敗は「正規の Stripe からのリクエストではない」ことを意味する
     console.error("[billing] Webhook の署名検証に失敗しました", error);
-    // 一時的な診断用: 原因特定のためエラーメッセージを返す。特定後に削除すること。
-    return NextResponse.json(
-      { message: "署名が不正です", debug: error instanceof Error ? error.message : String(error) },
-      { status: 400 },
-    );
+    return NextResponse.json({ message: "署名が不正です" }, { status: 400 });
   }
 
   try {
