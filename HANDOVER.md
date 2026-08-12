@@ -266,7 +266,23 @@ if auth.role() = 'service_role' then ...
 
 **対処**: 実際に課金が絡む環境変数（`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` 等）をVercelで変更・再デプロイした後は、**すぐに実利用を始めず、数分待ってから動作確認する**。万一Webhookが失敗しても、Stripeダッシュボードの「Webhook」→ 対象イベント →「再送」で再配信でき、`households.plan` は冪等に更新されるため実害なくリカバリできる（今回もこれで復旧した）。原因切り替えの際は、`src/app/api/billing/webhook/route.ts` に一時的な診断用GET（環境変数の末尾比較）やエラーメッセージ返却を仕込むと早い（**恒久的に残さないこと**。今回も原因特定後に削除済み）。
 
-### 4.12 その他
+### 4.12 Stripeの解約予約は `cancel_at_period_end` だけでなく `cancel_at` も見る必要がある
+
+Stripeカスタマーポータルで「期間終了時に解約」しても、実際のWebhookイベント（`customer.subscription.updated`）の中身は `cancel_at_period_end: false` のままで、代わりに `cancel_at`（解約予定の具体的なUnixタイムスタンプ）が設定されていた。`cancel_at_period_end` の真偽値だけで「解約予約中か」を判定するコードを書いたところ、実際に解約予約してもアプリ側は「次回のお支払い」の表示のままになってしまった。
+
+**原因**: Stripeのサブスクリプション解約予約は、APIバージョンや操作経路によって `cancel_at_period_end`（真偽値）と `cancel_at`（具体的日時）のどちらで表現されるかが異なる。両方を実装で考慮する必要がある。
+
+```ts
+// ✗ 不十分（このアカウントでは常に false だった）
+const willCancel = subscription.cancel_at_period_end;
+
+// ✓ 両方を見る
+const willCancel = Boolean(subscription.cancel_at_period_end) || subscription.cancel_at != null;
+```
+
+実装: [route.ts](src/app/api/billing/webhook/route.ts) の `syncSubscription`。**Stripeのサブスクリプションオブジェクトの特定フィールドの有無を前提にコードを書くときは、実際のWebhookイベントのペイロード（Stripeダッシュボードの「イベント」タブで実物を見られる）で確認してから実装すること。** ドキュメント上の型定義だけを見て「このフィールドがtrueになるはず」と決め打ちしない。
+
+### 4.13 その他
 
 | 事象 | 対処 |
 |---|---|
@@ -344,7 +360,7 @@ AuthProvider            … Supabase の認証状態
 | テーブル | 役割 |
 |---|---|
 | `profiles` | ユーザープロフィール + `active_household_id`（表示中の家計簿） |
-| `households` | 家計簿。`name` / `color` / `monthly_budget` / `invite_code` / `owner_id`（ホスト） / `plan`(`free`\|`premium`) / `category_order`（カテゴリ表示順のjsonb配列） / `income_category_order`（収入版） / `stripe_customer_id` / `stripe_subscription_id` / `subscription_status` / `current_period_end`（課金関連4カラム。**クライアントからの直接更新はトリガーで無効化され、Stripe Webhookのservice role接続からのみ更新できる**。§4.9） |
+| `households` | 家計簿。`name` / `color` / `monthly_budget` / `invite_code` / `owner_id`（ホスト） / `plan`(`free`\|`premium`) / `category_order`（カテゴリ表示順のjsonb配列） / `income_category_order`（収入版） / `stripe_customer_id` / `stripe_subscription_id` / `subscription_status` / `current_period_end` / `cancel_at_period_end`（課金関連5カラム。**クライアントからの直接更新はトリガーで無効化され、Stripe Webhookのservice role接続からのみ更新できる**。§4.9） |
 | `household_members` | 所属関係（多対多）。**1人が複数の家計簿に所属できる** |
 | `expenses` | 支出・収入の両方を格納（`type`: `'expense' \| 'income'`）。`category_id` は type ごとに別名前空間（支出=固定カテゴリの文字列ID/カスタムカテゴリのUUID、収入=`src/lib/expenses/incomeCategories.ts` の固定ID）。**CHECK制約なし** |
 | `custom_categories` | カスタムカテゴリ。`type`（`'expense' \| 'income'`）で支出用/収入用を区別。作成は premium プランのみ（RLSで強制） |
@@ -463,6 +479,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | 機能追加 | 「順調」「ややふっくら」段階に暫定でキャラクター画像を登録（隣接段階の `slim.png` / `round.png` を流用）、絵文字プレースホルダーを解消 |
 | 機能追加 | 課金の本実装（Stripe、月額170円、household単位）。Checkout/カスタマーポータル/Webhookを実装し、Stripeテストモードでローカル・本番の両方で決済→プレミアム反映→解約導線までE2Eで検証済み。検証中に2件のバグを発見・修正: ①課金カラム保護トリガーの `current_user` 判定が機能しておらず決済してもplanが更新されない（§4.9）、②householdを1件も持たないアカウントで家計簿作成の導線が出ない（§4.10） |
 | 移行 | Stripeをテストモードからライブモードへ移行（本番商品・Price・Webhookエンドポイントを作成、Vercel環境変数を差し替え）。移行直後、ユーザーの実決済（¥170）でWebhook配信が一時的に署名検証エラーとなりplanが反映されない事象が発生したが、原因調査（一時的な診断コードを追加→削除）の上、Stripe側の「再送」でリカバリし正常化（§4.11） |
+| 修正 | 解約予約中に「◯月◯日まで利用できます」と表示されない不具合を修正。`households.cancel_at_period_end` を追加し、Webhookから同期。実際のイベントを調査した結果、このアカウントでは解約予約が `cancel_at_period_end` ではなく `cancel_at`（具体的日時）で表現されていたため、両方を見て判定するようにした（§4.12） |
 
 ---
 
