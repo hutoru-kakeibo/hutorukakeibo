@@ -76,7 +76,7 @@ export function PlanSection() {
         <>
           {renewalDate && (
             <p className="mt-2 text-[11px] text-ink-muted">
-              {activeHousehold.subscriptionStatus === "canceled"
+              {activeHousehold.subscriptionStatus === "canceled" || activeHousehold.cancelAtPeriodEnd
                 ? `${renewalDate} まで利用できます`
                 : `次回のお支払い: ${renewalDate}`}
             </p>

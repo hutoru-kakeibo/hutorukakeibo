@@ -38,6 +38,8 @@ export interface Household {
   subscriptionStatus: string | null;
   /** 現在の課金期間の終了日時（ISO 8601）。解約予約中でもこの日までは利用できる */
   currentPeriodEnd: string | null;
+  /** true なら期間終了時に解約予約されている（currentPeriodEnd までは利用可） */
+  cancelAtPeriodEnd: boolean;
   /** 課金情報が存在するか（カスタマーポータルを開けるか）の判定に使う */
   hasStripeCustomer: boolean;
 }
@@ -105,7 +107,7 @@ async function fetchMyHouseholds(
   const { data: householdRows, error: householdsError } = await supabase
     .from("households")
     .select(
-      "id, name, color, monthly_budget, invite_code, owner_id, plan, category_order, income_category_order, stripe_customer_id, subscription_status, current_period_end",
+      "id, name, color, monthly_budget, invite_code, owner_id, plan, category_order, income_category_order, stripe_customer_id, subscription_status, current_period_end, cancel_at_period_end",
     )
     .in("id", householdIds);
 
@@ -146,6 +148,7 @@ async function fetchMyHouseholds(
     incomeCategoryOrder: Array.isArray(row.income_category_order) ? row.income_category_order : [],
     subscriptionStatus: row.subscription_status,
     currentPeriodEnd: row.current_period_end,
+    cancelAtPeriodEnd: row.cancel_at_period_end,
     hasStripeCustomer: Boolean(row.stripe_customer_id),
     members: (allMemberRows ?? [])
       .filter((member) => member.household_id === row.id)

@@ -24,6 +24,8 @@ create table public.households (
   subscription_status text,
   -- 現在の課金期間の終了日時。解約予約中でもこの日までは利用できる
   current_period_end timestamptz,
+  -- 期間終了時に解約予約されているか（true でも current_period_end までは利用可）
+  cancel_at_period_end boolean not null default false,
   -- 「記録」タブのカテゴリ表示順（カテゴリIDの配列）。ドラッグ並べ替えで更新される。
   -- 未登録のカテゴリ（新しく追加されたもの等）はこの配列に含まれず、末尾に自然順で表示される。
   category_order jsonb not null default '[]'::jsonb,
@@ -349,6 +351,7 @@ begin
   new.stripe_subscription_id := old.stripe_subscription_id;
   new.subscription_status := old.subscription_status;
   new.current_period_end := old.current_period_end;
+  new.cancel_at_period_end := old.cancel_at_period_end;
   return new;
 end;
 $$;

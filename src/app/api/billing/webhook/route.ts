@@ -38,6 +38,7 @@ async function syncSubscription(subscription: Stripe.Subscription) {
       stripe_subscription_id: subscription.id,
       subscription_status: status,
       current_period_end: toIsoOrNull(periodEnd),
+      cancel_at_period_end: subscription.cancel_at_period_end,
     })
     .eq("id", householdId);
 

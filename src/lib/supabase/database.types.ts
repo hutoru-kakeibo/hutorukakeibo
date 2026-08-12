@@ -28,6 +28,7 @@ export interface Database {
           stripe_subscription_id: string | null;
           subscription_status: string | null;
           current_period_end: string | null;
+          cancel_at_period_end: boolean;
           category_order: string[];
           income_category_order: string[];
           created_at: string;
@@ -51,6 +52,7 @@ export interface Database {
           stripe_subscription_id?: string | null;
           subscription_status?: string | null;
           current_period_end?: string | null;
+          cancel_at_period_end?: boolean;
           category_order?: string[];
           income_category_order?: string[];
         };
