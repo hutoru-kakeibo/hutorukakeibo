@@ -254,7 +254,19 @@ if auth.role() = 'service_role' then ...
 
 **解決策**: `activeHousehold` が無い場合は最初から「家計簿を作成するフォーム」を表示するようにした（[HouseholdSwitcher.tsx](src/components/household/HouseholdSwitcher.tsx)）。課金機能のローカル検証中に発見・修正。
 
-### 4.11 その他
+### 4.11 Stripeライブモード移行直後、最初のWebhook配信だけ署名検証に失敗することがある
+
+2026-08-12、テストモードからライブモードへ移行した直後に実際のユーザーが決済したところ、`checkout.session.completed` と `customer.subscription.created` の最初のWebhook配信が **署名検証エラー（400 "No signatures found matching the expected signature for payload"）** で失敗し、`households.plan` が更新されなかった（＝実際に課金されたのにプレミアムに反映されない状態になった）。
+
+**確認した事実**:
+- Vercelの `STRIPE_WEBHOOK_SECRET` は、Stripeダッシュボードに表示された値と末尾6文字・長さとも完全に一致していた（コピーミスではない）
+- 数分後、Stripeダッシュボードの「再送」（同じイベントの再配信）で**同じ環境変数のまま**成功した
+
+**推測される原因（未確定）**: Vercelの環境変数を更新して再デプロイした直後は、サーバーレス関数の実行インスタンスが新しい環境変数を確実に持つまでに数分のばらつきが生じることがある。ライブ移行の作業直後にユーザーが即座に決済したため、古いインスタンス（＝壊れた/未設定の値を掴んでいた可能性がある）が最初のリクエストを処理してしまった可能性が高い。
+
+**対処**: 実際に課金が絡む環境変数（`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` 等）をVercelで変更・再デプロイした後は、**すぐに実利用を始めず、数分待ってから動作確認する**。万一Webhookが失敗しても、Stripeダッシュボードの「Webhook」→ 対象イベント →「再送」で再配信でき、`households.plan` は冪等に更新されるため実害なくリカバリできる（今回もこれで復旧した）。原因切り替えの際は、`src/app/api/billing/webhook/route.ts` に一時的な診断用GET（環境変数の末尾比較）やエラーメッセージ返却を仕込むと早い（**恒久的に残さないこと**。今回も原因特定後に削除済み）。
+
+### 4.12 その他
 
 | 事象 | 対処 |
 |---|---|
@@ -385,7 +397,7 @@ curl -X PATCH "https://cwxiurfqflcxypzldnjh.supabase.co/rest/v1/households?id=eq
 | **Vercel** | https://vercel.com | GitHub連携。`main` への push で自動デプロイ |
 | **GitHub** | https://github.com/hutoru-kakeibo/hutorukakeibo | |
 | **Google Cloud Console** | https://console.cloud.google.com | OAuth クライアント（アプリ名「太る家計簿」） |
-| **Stripe** | https://dashboard.stripe.com | プレミアムプラン（月額170円）の課金。現在は**テストモード**。商品名「太る家計簿プレミアム」。本番稼働時はライブモードのAPIキー・Price ID・Webhookエンドポイントに切り替えが必要（§10） |
+| **Stripe** | https://dashboard.stripe.com | プレミアムプラン（月額170円）の課金。**2026-08-12 にライブモードへ移行済み**（本番=実課金）。商品名「太る家計簿プレミアム」。ローカル開発（`.env.local`）は誤課金防止のためテストモードのまま維持している |
 
 ### 認証まわりの設定箇所（変更時は3箇所すべて確認）
 
@@ -449,7 +461,8 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 | デザイン調整 | ホームの挨拶文・シェアボタンのアイコン・統計の支出/収入サマリー行を削除、取引履歴を3行構成に変更 |
 | デザイン調整 | ホームの「最近の記録」を取引履歴と同じ3行構成に統一、統計の円グラフに合計金額を表示、家計簿の色を主要ボタン・選択状態・棒グラフに適用 |
 | 機能追加 | 「順調」「ややふっくら」段階に暫定でキャラクター画像を登録（隣接段階の `slim.png` / `round.png` を流用）、絵文字プレースホルダーを解消 |
-| 機能追加 | 課金の本実装（Stripe、月額170円、household単位）。Checkout/カスタマーポータル/Webhookを実装し、Stripeテストモードでローカル・本番の両方で決済→プレミアム反映→解約導線までE2Eで検証済み。検証中に2件のバグを発見・修正: ①課金カラム保護トリガーの `current_user` 判定が機能しておらず決済してもplanが更新されない（§4.9）、②householdを1件も持たないアカウントで家計簿作成の導線が出ない（§4.10）。Vercel環境変数とStripe本番Webhookエンドポイントも設定済み。実際に課金を始めるにはライブモードへの切り替えが必要（§10） |
+| 機能追加 | 課金の本実装（Stripe、月額170円、household単位）。Checkout/カスタマーポータル/Webhookを実装し、Stripeテストモードでローカル・本番の両方で決済→プレミアム反映→解約導線までE2Eで検証済み。検証中に2件のバグを発見・修正: ①課金カラム保護トリガーの `current_user` 判定が機能しておらず決済してもplanが更新されない（§4.9）、②householdを1件も持たないアカウントで家計簿作成の導線が出ない（§4.10） |
+| 移行 | Stripeをテストモードからライブモードへ移行（本番商品・Price・Webhookエンドポイントを作成、Vercel環境変数を差し替え）。移行直後、ユーザーの実決済（¥170）でWebhook配信が一時的に署名検証エラーとなりplanが反映されない事象が発生したが、原因調査（一時的な診断コードを追加→削除）の上、Stripe側の「再送」でリカバリし正常化（§4.11） |
 
 ---
 
@@ -457,9 +470,6 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://hutorukakeibo.vercel.app/
 
 ### 優先度: 高
 - [ ] **「順調」「ややふっくら」の専用キャラクター画像**。現在は暫定で隣接段階の画像（`slim.png` / `round.png`）を流用登録している（§5.3, §4.7）。専用イラストが届いたら §4.7 の手順で透過 → `ILLUSTRATED_STAGES` を更新
-- [ ] **課金を実際に開始する場合はStripeをテストモードからライブモードに切り替え**（APIキー・Price ID・Webhookエンドポイントをすべて本番用に作り直し、Vercelの環境変数も差し替える）。それまではテストモードのまま運用され、実際の課金は発生しない
-  - 本番のVercel環境変数（`SUPABASE_SERVICE_ROLE_KEY` / `STRIPE_SECRET_KEY` / `STRIPE_PRICE_ID` / `STRIPE_WEBHOOK_SECRET` / `NEXT_PUBLIC_SITE_URL`）は設定済み。Stripe本番Webhookエンドポイント（`https://hutorukakeibo.vercel.app/api/billing/webhook`、対象イベント: `checkout.session.completed` / `customer.subscription.created` / `customer.subscription.updated` / `customer.subscription.deleted`）も登録済み
-  - 本番環境で実際にテストカード決済 → Webhook経由でplanがpremiumへ反映 → カスタマーポータルが開くところまで動作確認済み（2026-08-11）
 
 ### 優先度: 中
 - [ ] 月をまたいだ過去データの閲覧（現状は当月のみ）
