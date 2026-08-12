@@ -27,6 +27,10 @@ async function syncSubscription(subscription: Stripe.Subscription) {
   const status = subscription.status;
   // 期間終了日は items 側に入る（API バージョンによりトップレベルに無いことがある）
   const periodEnd = subscription.items.data[0]?.current_period_end;
+  // 解約予約の表現は cancel_at_period_end（真偽値）と cancel_at（具体的な日時）の
+  // 2通りがあり、アカウント/APIバージョンによってどちらが使われるかが異なる。
+  // 両方を見て「解約予約されているか」を判定する。
+  const willCancel = Boolean(subscription.cancel_at_period_end) || subscription.cancel_at != null;
 
   const supabase = createAdminClient();
   const { error } = await supabase
@@ -38,7 +42,7 @@ async function syncSubscription(subscription: Stripe.Subscription) {
       stripe_subscription_id: subscription.id,
       subscription_status: status,
       current_period_end: toIsoOrNull(periodEnd),
-      cancel_at_period_end: subscription.cancel_at_period_end,
+      cancel_at_period_end: willCancel,
     })
     .eq("id", householdId);
 
